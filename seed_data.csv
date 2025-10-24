@@ -1,0 +1,10 @@
+county,soil_type,avg_rainfall,avg_temp,farm_type,recommendation
+Makueni,sandy,350,26,crop,sorghum
+Makueni,sandy,350,26,livestock,goat
+Nyeri,loamy,1200,20,crop,maize
+Nyeri,loamy,1200,20,livestock,dairy_cow
+Kitui,sandy,250,28,crop,green_grams
+Kilifi,sandy,900,30,livestock,chicken
+Nakuru,loamy,800,22,crop,beans
+Embu,clay,1000,21,crop,maize
+Baringo,sandy,200,29,livestock,goat
