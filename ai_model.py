@@ -8,7 +8,7 @@ MODEL_PATH = "decision_tree.pkl"
 DATA_PATH = "seed_data.csv"
 
 def train_and_save():
-    df = pd.read_csv("C:/Users/user/Desktop/Agritech/seed_data.csv")
+    df = pd.read_csv("seed_data.csv")
     # Simple feature engineering
     df['soil_enc'] = LabelEncoder().fit_transform(df['soil_type'])
     df['farm_enc'] = LabelEncoder().fit_transform(df['farm_type'])
