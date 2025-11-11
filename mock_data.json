@@ -1,0 +1,34 @@
+{
+  "regions": {
+    "Makueni": {
+      "soil": "sandy",
+      "weather": "hot",
+      "crop_recommendation": "sorghum",
+      "livestock_recommendation": "goat"
+    },
+    "Nyeri": {
+      "soil": "loamy", 
+      "weather": "mild",
+      "crop_recommendation": "maize",
+      "livestock_recommendation": "dairy_cow"
+    },
+    "Kitui": {
+      "soil": "sandy",
+      "weather": "hot", 
+      "crop_recommendation": "green_grams",
+      "livestock_recommendation": "goat"
+    },
+    "Nakuru": {
+      "soil": "loamy",
+      "weather": "cool",
+      "crop_recommendation": "beans", 
+      "livestock_recommendation": "dairy_cow"
+    },
+    "Kilifi": {
+      "soil": "sandy",
+      "weather": "hot",
+      "crop_recommendation": "coconut",
+      "livestock_recommendation": "chicken"
+    }
+  }
+}
