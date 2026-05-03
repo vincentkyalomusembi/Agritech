@@ -7,6 +7,8 @@ import uvicorn
 
 from recommender import get_recommendation
 from ussd_flow import handle_ussd
+from services.africastalking import send_sms, notify_subscription
+from user_store import subscribe_user, get_user_by_phone, list_subscribers
 
 
 app = FastAPI(title="Agritech AI")
@@ -35,6 +37,34 @@ async def ussd(request: Request):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+class SMSRequest(BaseModel):
+    to: str
+    message: str
+
+
+@app.post("/sms")
+def sms_send(req: SMSRequest):
+    """Send SMS using Africa's Talking credentials in the environment."""
+    result = send_sms(req.to, req.message)
+    return result
+
+
+class SubscribeRequest(BaseModel):
+    phone: str
+    plan: str | None = "weekly"
+
+
+@app.post("/subscribe")
+def subscribe(req: SubscribeRequest):
+    user = subscribe_user(req.phone, req.plan or "weekly")
+    # notify via SMS (best-effort)
+    try:
+        notify_subscription(req.phone, req.plan or "weekly")
+    except Exception:
+        pass
+    return {"status": "subscribed", "user": user}
 
 
 if __name__ == "__main__":

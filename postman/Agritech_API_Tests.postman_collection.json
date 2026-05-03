@@ -1,0 +1,69 @@
+{
+  "info": {
+    "_postman_id": "a2c6d3c8-6b2c-4eb0-b5f5-0a7cbd6b5d21",
+    "name": "Agritech API Tests",
+    "description": "Postman collection for testing OpenWeather and Gemini API keys used by the Agritech project.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "OpenWeather - Test Key",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.openweathermap.org/data/2.5/weather?q={{weather_city}},KE&appid={{openweather_api_key}}&units=metric",
+          "protocol": "https",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["data", "2.5", "weather"],
+          "query": [
+            {
+              "key": "q",
+              "value": "{{weather_city}},KE"
+            },
+            {
+              "key": "appid",
+              "value": "{{openweather_api_key}}"
+            },
+            {
+              "key": "units",
+              "value": "metric"
+            }
+          ]
+        },
+        "description": "Checks whether the OpenWeather API key returns a live weather response."
+      },
+      "response": []
+    },
+    {
+      "name": "Gemini - Test Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "https://generativelanguage.googleapis.com/v1beta/models/{{gemini_model}}:generateContent?key={{gemini_api_key}}",
+          "protocol": "https",
+          "host": ["generativelanguage", "googleapis", "com"],
+          "path": ["v1beta", "models", "{{gemini_model}}:generateContent"],
+          "query": [
+            {
+              "key": "key",
+              "value": "{{gemini_api_key}}"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"Reply with one short sentence confirming the Gemini API key is working.\"\n        }\n      ]\n    }\n  ]\n}"
+        },
+        "description": "Checks whether the Gemini API key can generate a short response."
+      },
+      "response": []
+    }
+  ]
+}
