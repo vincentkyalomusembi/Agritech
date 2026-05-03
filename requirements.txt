@@ -6,3 +6,4 @@ pandas
 joblib
 python-dotenv
 google-generativeai
+earthengine-api

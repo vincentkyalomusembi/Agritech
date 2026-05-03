@@ -1,11 +1,17 @@
+"""Legacy simple_app moved to scripts for optional standalone run."""
 import json
 import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 import urllib.parse
 
-# Load mock data
-with open('mock_data.json', 'r') as f:
+# Load mock data (fallback to data folder)
+ROOT = os.path.dirname(os.path.dirname(__file__))
+mock_path = os.path.join(ROOT, 'mock_data.json')
+if not os.path.exists(mock_path):
+    mock_path = os.path.join(ROOT, 'data', 'mock_data.json')
+
+with open(mock_path, 'r') as f:
     mock_data = json.load(f)
 
 def get_recommendation(county, farm_type, soil_type=None):
@@ -16,14 +22,11 @@ def get_recommendation(county, farm_type, soil_type=None):
         "crop_recommendation": "maize",
         "livestock_recommendation": "chicken"
     })
-    
     if farm_type.lower() == "crop":
         recommendation = region_data["crop_recommendation"]
     else:
         recommendation = region_data["livestock_recommendation"]
-    
     advice = f"For {county} with {region_data['soil']} soil and {region_data['weather']} weather, {recommendation} is recommended."
-    
     return {
         "county": county,
         "soil": soil_type or region_data["soil"],
@@ -38,11 +41,9 @@ class USSDHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('utf-8')
             data = parse_qs(post_data)
-            
             text = data.get('text', [''])[0]
-            
             if text == "":
-                response = "CON Welcome to Agritech AI\\n1. Crop Recommendation\\n2. Livestock Recommendation"
+                response = "CON Welcome to Agritech AI\n1. Crop Recommendation\n2. Livestock Recommendation"
             elif text in ["1", "2"]:
                 response = "CON Enter your county (e.g., Makueni):"
             elif "*" in text:
@@ -54,35 +55,29 @@ class USSDHandler(BaseHTTPRequestHandler):
                     county = parts[1]
                     soil = parts[2] if parts[2] != 'auto' else None
                     farm_type = "crop" if option == "1" else "livestock"
-                    
                     result = get_recommendation(county, farm_type, soil)
-                    response = f"END Recommended: {result['recommendation']}\\n{result['advice'][:80]}..."
+                    response = f"END Recommended: {result['recommendation']}\n{result['advice'][:80]}..."
                 else:
                     response = "END Invalid input. Try again."
             else:
                 response = "END Invalid option. Try again."
-            
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             self.wfile.write(response.encode())
-        
         elif self.path == '/recommend':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('utf-8')
             data = json.loads(post_data)
-            
             result = get_recommendation(
                 data['county'], 
                 data['farm_type'], 
                 data.get('soil_type')
             )
-            
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
-    
     def do_GET(self):
         if self.path == '/health':
             self.send_response(200)
