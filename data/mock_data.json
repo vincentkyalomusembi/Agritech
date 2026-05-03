@@ -7,21 +7,21 @@
       "livestock_recommendation": "goat"
     },
     "Nyeri": {
-      "soil": "loamy", 
+      "soil": "loamy",
       "weather": "mild",
       "crop_recommendation": "maize",
       "livestock_recommendation": "dairy_cow"
     },
     "Kitui": {
       "soil": "sandy",
-      "weather": "hot", 
+      "weather": "hot",
       "crop_recommendation": "green_grams",
       "livestock_recommendation": "goat"
     },
     "Nakuru": {
       "soil": "loamy",
       "weather": "cool",
-      "crop_recommendation": "beans", 
+      "crop_recommendation": "beans",
       "livestock_recommendation": "dairy_cow"
     },
     "Kilifi": {
