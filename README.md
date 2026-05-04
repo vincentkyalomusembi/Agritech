@@ -229,6 +229,39 @@ Livestock disease prediction.
 Farmer-to-farmer marketplace module.
 
 
+---
+
+🛰️ Google Earth Engine (GEE) Quick Start
+
+1. Enable Earth Engine API in your Google Cloud project.
+2. Configure authentication (recommended: Service Account).
+3. Add these environment variables:
+
+```
+GEE_PROJECT_ID=your_gcp_project_id
+GEE_SERVICE_ACCOUNT=your-service-account@your-project.iam.gserviceaccount.com
+GEE_KEY_PATH=/absolute/path/to/service-account-key.json
+```
+
+4. Generate county summaries (batch mode):
+
+```bash
+source env/bin/activate
+python scripts/update_gee_summaries.py
+```
+
+5. Read results from API:
+
+- `GET /gee/alerts/{county}` for live on-demand insights.
+- `GET /gee/alerts-cache` for latest batch-cached summaries.
+
+6. USSD menu changes:
+
+- `1` and `2` now enrich recommendations with GEE and Gemini context.
+- `3` and `4` are subscriber-only and include GEE-aware alert summaries.
+- `9` subscribes the current USSD phone number for alerts.
+
+
 
 ---
 

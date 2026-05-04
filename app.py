@@ -2,27 +2,42 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from urllib.parse import parse_qs
+from pathlib import Path
+import json
 
 import uvicorn
 
 from recommender import get_recommendation
+from services.gee import get_gee_insights
 from ussd_flow import handle_ussd
 from services.africastalking import send_sms, notify_subscription
 from user_store import subscribe_user, get_user_by_phone, list_subscribers
 
 
 app = FastAPI(title="Agritech AI")
+BASE_DIR = Path(__file__).resolve().parent
+GEE_CACHE_FILE = BASE_DIR / "data" / "gee_alerts_latest.json"
 
 
 class RecommendRequest(BaseModel):
     county: str
     farm_type: str
     soil_type: str | None = None
+    farm_size: str | None = None
+    budget: str | None = None
+    experience: str | None = None
 
 
 @app.post("/recommend")
 def recommend(req: RecommendRequest):
-    return get_recommendation(req.county, req.farm_type, req.soil_type)
+    return get_recommendation(
+        req.county,
+        req.farm_type,
+        req.soil_type,
+        farm_size=req.farm_size,
+        budget=req.budget,
+        experience=req.experience,
+    )
 
 
 @app.post("/ussd", response_class=PlainTextResponse)
@@ -37,6 +52,22 @@ async def ussd(request: Request):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/gee/alerts/{county}")
+def gee_alerts(county: str):
+    return get_gee_insights(county)
+
+
+@app.get("/gee/alerts-cache")
+def gee_alerts_cache():
+    if not GEE_CACHE_FILE.exists():
+        return {
+            "status": "not_found",
+            "message": "No cached GEE summaries yet. Run scripts/update_gee_summaries.py first.",
+        }
+    with GEE_CACHE_FILE.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 class SMSRequest(BaseModel):

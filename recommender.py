@@ -3,11 +3,10 @@ import json
 
 from services.advisory import build_advice
 from services.alerts import get_alerts
+from services.gee import get_gee_insights
 from services.market import get_market_prices
 from services.products import list_products
 from services.weather import get_weather
-
-
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 ROOT_DATA_FILE = BASE_DIR / "mock_data.json"
@@ -34,7 +33,7 @@ def _load_mock_data():
 MOCK_DATA = _load_mock_data()
 
 
-def get_recommendation(county, farm_type, soil_type=None):
+def get_recommendation(county, farm_type, soil_type=None, farm_size=None, budget=None, experience=None):
     county = (county or "").strip().title()
     farm_type = (farm_type or "crop").strip().lower()
 
@@ -57,7 +56,37 @@ def get_recommendation(county, farm_type, soil_type=None):
 
     soil = (soil_type or region_data.get("soil", "loamy")).strip().lower()
     weather = get_weather(county)
-    advice = build_advice(county, soil, weather, recommendation)
+
+    # Prefer cached GEE summaries to avoid long blocking calls during USSD sessions.
+    GEE_CACHE = BASE_DIR / "data" / "gee_alerts_latest.json"
+    gee_insights = None
+    try:
+        if GEE_CACHE.exists():
+            payload = json.loads(GEE_CACHE.read_text(encoding="utf-8"))
+            for item in payload.get("items", []):
+                if item.get("county") == county:
+                    gee_insights = item
+                    break
+    except Exception:
+        gee_insights = None
+
+    # Fallback to live GEE call if no cache available (may be slow).
+    if not gee_insights:
+        try:
+            gee_insights = get_gee_insights(county)
+        except Exception:
+            gee_insights = None
+
+    advice = build_advice(
+        county,
+        soil,
+        weather,
+        recommendation,
+        gee_insights=gee_insights,
+        farm_size=farm_size,
+        budget=budget,
+        experience=experience,
+    )
 
     return {
         "county": county,
@@ -66,7 +95,11 @@ def get_recommendation(county, farm_type, soil_type=None):
         "recommendation": recommendation,
         "advice": advice,
         "weather": weather,
+        "gee_insights": gee_insights,
         "alerts": get_alerts(county),
         "market": get_market_prices(recommendation),
         "products": list_products(),
+        "farm_size": farm_size,
+        "budget": budget,
+        "experience": experience,
     }

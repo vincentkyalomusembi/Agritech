@@ -1,8 +1,10 @@
 """Hardcoded demo users for the Agritech AI prototype."""
 
-USERS = [
+from typing import Any
+
+USERS: list[dict[str, Any]] = [
     {
-        "phone_number": "+254700000001",
+        "phone_number": "+254792246733",
         "name": "Vin Demo",
         "county": "Makueni",
         "farm_type": "crop",
@@ -16,7 +18,7 @@ USERS = [
         "soil_type": "loamy",
     },
     {
-        "phone_number": "+254700000003",
+        "phone_number": "+254746064796",
         "name": "James Mwangi",
         "county": "Nakuru",
         "farm_type": "crop",
@@ -31,7 +33,7 @@ USERS = [
     },
 ]
 
-VETS = [
+VETS: list[dict[str, Any]] = [
     {
         "phone_number": "+254700000004",
         "name": "Dr. Sarah Ochieng",
@@ -69,7 +71,7 @@ VETS = [
     },
 ]
 
-AGRICULTURAL_OFFICERS = [
+AGRICULTURAL_OFFICERS: list[dict[str, Any]] = [
     {
         "phone_number": "+254700000009",
         "name": "David Mutiso",

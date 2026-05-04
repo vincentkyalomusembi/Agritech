@@ -1,27 +1,48 @@
 from recommender import get_recommendation
-from services.alerts import get_alerts
+from services.alerts import build_weather_alert, build_disease_alert
 from services.market import get_market_prices
 from services.advisory import build_advice
 from services.weather import get_weather
 from user_store import get_user_by_phone, list_vets, list_agricultural_officers
+from services.africastalking import notify_subscription
+from user_store import subscribe_user
 
 
-def _main_menu():
-    return "CON Welcome to Agritech AI\n1. Crop Recommendation\n2. Livestock Recommendation\n3. Weather Alerts\n4. Disease Alerts\n5. Market Prices\n6. Request Expert Visit\n7. Advisory Tips\n8. My Profile\n9. Subscribe"
+def _main_menu(user_name: str | None = None):
+    greeting_name = (user_name or "").strip() or "Farmer"
+    return (
+        f"CON Welcome {greeting_name} in Agritech AI\n"
+        "1. Crop Recommendation\n"
+        "2. Livestock Recommendation\n"
+        "3. Weather Alerts\n"
+        "4. Disease Alerts\n"
+        "5. Market Prices\n"
+        "6. Request Expert Visit\n"
+        "7. Advisory Tips\n"
+        "8. My Profile\n"
+        "9. Subscribe"
+    )
 
 
-def _get_weather_alerts(county: str):
+def _is_subscribed(phone_number: str):
+    user = get_user_by_phone(phone_number)
+    return bool(user and user.get("subscribed"))
+
+
+def _get_weather_alerts(county: str, subscribed: bool = False):
     try:
         weather = get_weather(county)
-        alerts = get_alerts(county)
-        return f"Weather in {county}: {weather.get('condition', 'Unknown')}, {weather.get('temp', '?')}°C\nAlerts: {' '.join(alerts[:2])}"
-    except:
+        alert_text = build_weather_alert(county, subscribed=subscribed)
+        return (
+            f"Weather in {county}: {weather.get('condition', 'Unknown')}, {weather.get('temp', '?')}°C\n"
+            f"{alert_text}"
+        )
+    except Exception:
         return f"Weather alerts for {county} service temporarily unavailable"
 
 
-def _get_disease_alerts(county: str):
-    alerts = get_alerts(county)
-    return f"Disease alerts for {county}:\n• No active disease outbreaks reported\n• Monitor crops for pests"
+def _get_disease_alerts(county: str, subscribed: bool = False):
+    return build_disease_alert(county, subscribed=subscribed)
 
 
 def _get_market_prices_menu():
@@ -63,23 +84,38 @@ def _get_user_profile(phone_number: str):
 def handle_ussd(text: str, phone_number: str = ""):
     text = (text or "").strip()
 
+    current_user = get_user_by_phone(phone_number)
+    user_name = current_user.get("name") if current_user else None
+
     if not text:
-        return _main_menu()
+        return _main_menu(user_name)
 
     parts = text.split("*")
     option = parts[0]
 
     # Crop Recommendation (Option 1)
     if option == "1":
+        # flow: 1 -> county -> soil -> farm size -> budget -> experience
         if len(parts) == 1:
             return "CON Enter your county (e.g., Makueni):"
         elif len(parts) == 2:
             return "CON Enter soil type (loamy/sandy/clay) or type 'unknown':"
-        elif len(parts) >= 3:
+        elif len(parts) == 3:
+            return "CON Enter your farm size (e.g., 2 acres or 0.5 ha):"
+        elif len(parts) == 4:
+            return "CON Enter your budget in KES (approx):"
+        elif len(parts) == 5:
+            return "CON Select experience level:\n1. Beginner\n2. Intermediate\n3. Expert"
+        elif len(parts) >= 6:
             county = parts[1]
             soil = parts[2]
+            farm_size = parts[3]
+            budget = parts[4]
+            exp_choice = parts[5]
+            exp_map = {"1": "beginner", "2": "intermediate", "3": "expert"}
+            experience = exp_map.get(exp_choice, exp_choice)
             soil_input = None if soil.lower() == "unknown" else soil
-            response = get_recommendation(county, "crop", soil_input)
+            response = get_recommendation(county, "crop", soil_input, farm_size=farm_size, budget=budget, experience=experience)
             return (
                 f"END Recommended for {response['county']}:\n"
                 f"• {response['recommendation']}\n"
@@ -88,15 +124,27 @@ def handle_ussd(text: str, phone_number: str = ""):
 
     # Livestock Recommendation (Option 2)
     elif option == "2":
+        # flow: 2 -> county -> soil -> farm size -> budget -> experience
         if len(parts) == 1:
             return "CON Enter your county (e.g., Makueni):"
         elif len(parts) == 2:
             return "CON Enter soil type (loamy/sandy/clay) or type 'unknown':"
-        elif len(parts) >= 3:
+        elif len(parts) == 3:
+            return "CON Enter your farm size (e.g., 2 acres or 0.5 ha):"
+        elif len(parts) == 4:
+            return "CON Enter your budget in KES (approx):"
+        elif len(parts) == 5:
+            return "CON Select experience level:\n1. Beginner\n2. Intermediate\n3. Expert"
+        elif len(parts) >= 6:
             county = parts[1]
             soil = parts[2]
+            farm_size = parts[3]
+            budget = parts[4]
+            exp_choice = parts[5]
+            exp_map = {"1": "beginner", "2": "intermediate", "3": "expert"}
+            experience = exp_map.get(exp_choice, exp_choice)
             soil_input = None if soil.lower() == "unknown" else soil
-            response = get_recommendation(county, "livestock", soil_input)
+            response = get_recommendation(county, "livestock", soil_input, farm_size=farm_size, budget=budget, experience=experience)
             return (
                 f"END Recommended for {response['county']}:\n"
                 f"• {response['recommendation']}\n"
@@ -109,7 +157,9 @@ def handle_ussd(text: str, phone_number: str = ""):
             return "CON Enter your county for weather alerts:"
         elif len(parts) >= 2:
             county = parts[1]
-            return f"END {_get_weather_alerts(county)}"
+            if not _is_subscribed(phone_number):
+                return "END Weather alerts are for subscribed users only. Reply with option 9 to subscribe."
+            return f"END {_get_weather_alerts(county, subscribed=True)}"
 
     # Disease Alerts (Option 4)
     elif option == "4":
@@ -117,7 +167,9 @@ def handle_ussd(text: str, phone_number: str = ""):
             return "CON Enter your county for disease alerts:"
         elif len(parts) >= 2:
             county = parts[1]
-            return f"END {_get_disease_alerts(county)}"
+            if not _is_subscribed(phone_number):
+                return "END Disease alerts are for subscribed users only. Reply with option 9 to subscribe."
+            return f"END {_get_disease_alerts(county, subscribed=True)}"
 
     # Market Prices (Option 5)
     elif option == "5":
@@ -145,6 +197,16 @@ def handle_ussd(text: str, phone_number: str = ""):
 
     # Subscribe (Option 9)
     elif option == "9":
-        return "END Subscription service:\n• KES 10/week for premium features\n• Includes weather alerts, market updates\n• Call 07XX123456 to subscribe"
+        if phone_number:
+            user = subscribe_user(phone_number, "weekly")
+            try:
+                notify_subscription(phone_number, "weekly")
+            except Exception:
+                pass
+            return (
+                f"END You are now subscribed using {phone_number}.\n"
+                f"You will receive weather and disease alerts."
+            )
+        return "END Subscription service unavailable."
 
     return "END Invalid option. Try again."
