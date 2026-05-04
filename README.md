@@ -31,7 +31,7 @@ This demo is designed for hackathons, runs fully offline with mock data, and can
 Layer	Tool
 
 Backend	FastAPI (Python)
-Deployment	Ngrok (tunnel for Africa’s Talking callback)
+Deployment	Ngrok (local tunnel) / Render (production)
 SMS/USSD	Africa’s Talking Sandbox
 Environment	Python 3.9+
 Data	mock_data.json (editable)
@@ -88,6 +88,39 @@ uvicorn app:app --reload --port 8000
 ngrok http 8000
 
 Copy the Forwarding URL (e.g., https://xxxx.ngrok-free.app).
+
+
+---
+
+🚀 Deploying on Render
+
+1. Push this repository to GitHub.
+2. Create a new **Web Service** on Render.
+3. Connect the repo and choose the branch you want to deploy.
+4. Render will use the included `Dockerfile` automatically.
+5. Add your environment variables in Render:
+
+```bash
+OPENWEATHER_API_KEY=...
+GEMINI_API_KEY=...
+AT_API_KEY=...
+AT_USERNAME=sandbox
+GEE_PROJECT_ID=...
+GEE_SERVICE_ACCOUNT=...
+GEE_KEY_PATH=...
+```
+
+6. Deploy and use the Render URL for your Africa’s Talking callback:
+
+```text
+https://your-app.onrender.com/ussd
+```
+
+7. Health check endpoint:
+
+```text
+https://your-app.onrender.com/health
+```
 
 
 ---
