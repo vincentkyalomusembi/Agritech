@@ -1,0 +1,65 @@
+{
+  "maize": {
+    "min": 2600,
+    "max": 3500,
+    "unit": "Ksh/bag",
+    "source": "FAO"
+  },
+  "beans": {
+    "min": 6200,
+    "max": 8200,
+    "unit": "Ksh/bag",
+    "source": "FAO"
+  },
+  "sorghum": {
+    "min": 2400,
+    "max": 3300,
+    "unit": "Ksh/bag",
+    "source": "FAO"
+  },
+  "millet": {
+    "min": 2800,
+    "max": 3700,
+    "unit": "Ksh/bag",
+    "source": "FAO"
+  },
+  "cassava": {
+    "min": 750,
+    "max": 1500,
+    "unit": "Ksh/kg",
+    "source": "FAO"
+  },
+  "goat": {
+    "min": 5000,
+    "max": 9000,
+    "unit": "Ksh/head",
+    "source": "FAO"
+  },
+  "sheep": {
+    "min": 6200,
+    "max": 10500,
+    "unit": "Ksh/head",
+    "source": "FAO"
+  },
+  "chicken": {
+    "min": 1300,
+    "max": 2800,
+    "unit": "Ksh/bird",
+    "source": "FAO"
+  },
+  "dairy": {
+    "min": 38,
+    "max": 50,
+    "unit": "Ksh/liter",
+    "source": "FAO"
+  },
+  "fish": {
+    "min": 450,
+    "max": 900,
+    "unit": "Ksh/kg",
+    "source": "FAO"
+  },
+  "source": "fao",
+  "updated_at": "2026-05-05T01:43:23.489505",
+  "cached_at": "2026-05-05T01:43:23.489543"
+}
