@@ -31,7 +31,7 @@ This demo is designed for hackathons, runs fully offline with mock data, and can
 Layer	Tool
 
 Backend	FastAPI (Python)
-Deployment	Ngrok (tunnel for Africa’s Talking callback)
+Deployment	Ngrok (local tunnel) / Render (production)
 SMS/USSD	Africa’s Talking Sandbox
 Environment	Python 3.9+
 Data	mock_data.json (editable)
@@ -88,6 +88,39 @@ uvicorn app:app --reload --port 8000
 ngrok http 8000
 
 Copy the Forwarding URL (e.g., https://xxxx.ngrok-free.app).
+
+
+---
+
+🚀 Deploying on Render
+
+1. Push this repository to GitHub.
+2. Create a new **Web Service** on Render.
+3. Connect the repo and choose the branch you want to deploy.
+4. Render will use the included `Dockerfile` automatically.
+5. Add your environment variables in Render:
+
+```bash
+OPENWEATHER_API_KEY=...
+GEMINI_API_KEY=...
+AT_API_KEY=...
+AT_USERNAME=sandbox
+GEE_PROJECT_ID=...
+GEE_SERVICE_ACCOUNT=...
+GEE_KEY_PATH=...
+```
+
+6. Deploy and use the Render URL for your Africa’s Talking callback:
+
+```text
+https://your-app.onrender.com/ussd
+```
+
+7. Health check endpoint:
+
+```text
+https://your-app.onrender.com/health
+```
 
 
 ---
@@ -227,6 +260,39 @@ Offline caching for field agents.
 Livestock disease prediction.
 
 Farmer-to-farmer marketplace module.
+
+
+---
+
+🛰️ Google Earth Engine (GEE) Quick Start
+
+1. Enable Earth Engine API in your Google Cloud project.
+2. Configure authentication (recommended: Service Account).
+3. Add these environment variables:
+
+```
+GEE_PROJECT_ID=your_gcp_project_id
+GEE_SERVICE_ACCOUNT=your-service-account@your-project.iam.gserviceaccount.com
+GEE_KEY_PATH=/absolute/path/to/service-account-key.json
+```
+
+4. Generate county summaries (batch mode):
+
+```bash
+source env/bin/activate
+python scripts/update_gee_summaries.py
+```
+
+5. Read results from API:
+
+- `GET /gee/alerts/{county}` for live on-demand insights.
+- `GET /gee/alerts-cache` for latest batch-cached summaries.
+
+6. USSD menu changes:
+
+- `1` and `2` now enrich recommendations with GEE and Gemini context.
+- `3` and `4` are subscriber-only and include GEE-aware alert summaries.
+- `9` subscribes the current USSD phone number for alerts.
 
 
 

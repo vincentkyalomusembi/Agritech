@@ -1,8 +1,10 @@
 """Hardcoded demo users for the Agritech AI prototype."""
 
-USERS = [
+from typing import Any
+
+USERS: list[dict[str, Any]] = [
     {
-        "phone_number": "+254700000001",
+        "phone_number": "+254792246733",
         "name": "Vin Demo",
         "county": "Makueni",
         "farm_type": "crop",
@@ -16,7 +18,7 @@ USERS = [
         "soil_type": "loamy",
     },
     {
-        "phone_number": "+254700000003",
+        "phone_number": "+254746064796",
         "name": "James Mwangi",
         "county": "Nakuru",
         "farm_type": "crop",
@@ -31,7 +33,7 @@ USERS = [
     },
 ]
 
-VETS = [
+VETS: list[dict[str, Any]] = [
     {
         "phone_number": "+254700000004",
         "name": "Dr. Sarah Ochieng",
@@ -69,7 +71,7 @@ VETS = [
     },
 ]
 
-AGRICULTURAL_OFFICERS = [
+AGRICULTURAL_OFFICERS: list[dict[str, Any]] = [
     {
         "phone_number": "+254700000009",
         "name": "David Mutiso",
@@ -121,8 +123,6 @@ def get_user_by_phone(phone_number: str):
 
 def list_users():
     return USERS.copy()
-
-
 def list_vets():
     return VETS.copy()
 
@@ -134,3 +134,28 @@ def list_agricultural_officers():
 def list_all_users():
     """Returns all users (farmers, vets, and agricultural officers)"""
     return USERS + VETS + AGRICULTURAL_OFFICERS
+
+
+def subscribe_user(phone_number: str, plan: str = "weekly"):
+    phone_number = (phone_number or "").strip()
+    user = get_user_by_phone(phone_number)
+    if user:
+        user["subscribed"] = True
+        user["subscription_plan"] = plan
+        return user
+    # if not found, create a lightweight user record
+    new = {
+        "phone_number": phone_number,
+        "name": None,
+        "county": None,
+        "farm_type": None,
+        "soil_type": None,
+        "subscribed": True,
+        "subscription_plan": plan,
+    }
+    USERS.append(new)
+    return new
+
+
+def list_subscribers():
+    return [u for u in USERS if u.get("subscribed")]

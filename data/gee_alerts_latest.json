@@ -1,0 +1,86 @@
+{
+  "generated_at_utc": "2026-05-03T12:04:37.705302+00:00",
+  "count": 8,
+  "items": [
+    {
+      "status": "unavailable",
+      "county": "Kakamega",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    },
+    {
+      "status": "unavailable",
+      "county": "Kiambu",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    },
+    {
+      "status": "unavailable",
+      "county": "Machakos",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    },
+    {
+      "status": "unavailable",
+      "county": "Makueni",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    },
+    {
+      "status": "unavailable",
+      "county": "Meru",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    },
+    {
+      "status": "unavailable",
+      "county": "Nakuru",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    },
+    {
+      "status": "unavailable",
+      "county": "Nyeri",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    },
+    {
+      "status": "unavailable",
+      "county": "Uasin Gishu",
+      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
+      "details": {
+        "available": false,
+        "mode": "auth-error",
+        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
+      }
+    }
+  ]
+}
