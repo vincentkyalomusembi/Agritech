@@ -5,6 +5,8 @@ from urllib.parse import parse_qs
 from pathlib import Path
 import json
 import time
+import os
+import base64
 
 import uvicorn
 
@@ -14,6 +16,23 @@ from ussd_flow import handle_ussd
 from services.africastalking import send_sms, notify_subscription
 from user_store import subscribe_user, get_user_by_phone, list_subscribers
 
+
+# Decode GEE key from base64 if running in Render (no local .secret/ folder)
+def _setup_gee_key():
+    """Decode GEE service account key from base64 env var if provided."""
+    gee_key_base64 = os.getenv('GEE_KEY_BASE64')
+    if gee_key_base64:
+        try:
+            key_data = base64.b64decode(gee_key_base64)
+            key_path = Path('/tmp/gee_key.json')
+            key_path.write_bytes(key_data)
+            os.environ['GEE_KEY_PATH'] = str(key_path)
+            print(f"[GEE] Decoded service account key to {key_path}")
+        except Exception as e:
+            print(f"[GEE] Warning: Failed to decode GEE_KEY_BASE64: {e}")
+
+
+_setup_gee_key()
 
 app = FastAPI(title="Agritech AI")
 BASE_DIR = Path(__file__).resolve().parent
