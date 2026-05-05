@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from urllib.parse import parse_qs
 from pathlib import Path
 import json
+import time
 
 import uvicorn
 
@@ -17,6 +18,13 @@ from user_store import subscribe_user, get_user_by_phone, list_subscribers
 app = FastAPI(title="Agritech AI")
 BASE_DIR = Path(__file__).resolve().parent
 GEE_CACHE_FILE = BASE_DIR / "data" / "gee_alerts_latest.json"
+USSD_DEBUG_LOG = BASE_DIR / "logs" / "ussd_debug.log"
+
+
+def _log_ussd_event(message: str):
+    USSD_DEBUG_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with USSD_DEBUG_LOG.open("a", encoding="utf-8") as handle:
+        handle.write(message + "\n")
 
 
 class RecommendRequest(BaseModel):
@@ -42,11 +50,20 @@ def recommend(req: RecommendRequest):
 
 @app.post("/ussd", response_class=PlainTextResponse)
 async def ussd(request: Request):
+    started = time.time()
     body = await request.body()
     parsed = parse_qs(body.decode("utf-8")) if body else {}
     text = parsed.get("text", [""])[0]
     phone_number = parsed.get("phoneNumber", [""])[0]
-    return PlainTextResponse(handle_ussd(text=text, phone_number=phone_number))
+    result = handle_ussd(text=text, phone_number=phone_number)
+    elapsed_ms = int((time.time() - started) * 1000)
+    prefix = result[:3] if result else ""
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    safe_phone = f"***{phone_number[-4:]}" if phone_number else "unknown"
+    _log_ussd_event(
+        f"[{now}] /ussd phone={safe_phone} text_len={len(text)} prefix={prefix} elapsed_ms={elapsed_ms}"
+    )
+    return PlainTextResponse(result)
 
 
 @app.get("/health")

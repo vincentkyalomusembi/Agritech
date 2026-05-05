@@ -1,86 +1,150 @@
 {
-  "generated_at_utc": "2026-05-03T12:04:37.705302+00:00",
+  "generated_at_utc": "2026-05-04T22:13:03.270128+00:00",
   "count": 8,
   "items": [
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Kakamega",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.7562, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.7562,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 214.77,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     },
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Kiambu",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.4581, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.4581,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 115.31,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     },
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Machakos",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.5314, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.5314,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 92.81,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     },
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Makueni",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.5408, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.5408,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 105.95,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     },
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Meru",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.674, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.674,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 108.25,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     },
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Nakuru",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.7008, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.7008,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 123.81,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     },
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Nyeri",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.6643, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.6643,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 135.87,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     },
     {
-      "status": "unavailable",
+      "status": "ok",
       "county": "Uasin Gishu",
-      "message": "Earth Engine is not initialized. Configure GEE credentials first.",
-      "details": {
-        "available": false,
-        "mode": "auth-error",
-        "message": "Project 'projects/YOUR_GCP_PROJECT_ID' not found or deleted."
-      }
+      "alert_level": "high",
+      "summary": "NDVI 0.7484, rainfall anomaly -100.0%.",
+      "metrics": {
+        "ndvi_mean": 0.7484,
+        "rainfall_recent_30d_mm": 0.0,
+        "rainfall_expected_30d_mm": 165.96,
+        "rainfall_anomaly_pct": -100.0
+      },
+      "datasets": {
+        "ndvi": "MODIS/061/MOD13Q1",
+        "rainfall": "UCSB-CHG/CHIRPS/DAILY"
+      },
+      "gee_mode": "service-account",
+      "generated_on": "2026-05-05"
     }
   ]
 }

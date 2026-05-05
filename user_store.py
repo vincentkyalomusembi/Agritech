@@ -159,3 +159,13 @@ def subscribe_user(phone_number: str, plan: str = "weekly"):
 
 def list_subscribers():
     return [u for u in USERS if u.get("subscribed")]
+
+
+def update_user(phone_number: str, updates: dict):
+    """Update user fields by phone number"""
+    phone_number = (phone_number or "").strip()
+    user = get_user_by_phone(phone_number)
+    if user:
+        user.update(updates)
+        return user
+    return None

@@ -81,20 +81,23 @@ def _compute_ndvi_and_rainfall(county: str):
         .filterDate(recent_start, end_date)
     )
     ndvi_image = ndvi_collection.mean().multiply(0.0001)
-    ndvi_value = ndvi_image.reduceRegion(
+    ndvi_stats = ndvi_image.reduceRegion(
         reducer=ee.Reducer.mean(), geometry=polygon, scale=250, maxPixels=1_000_000
-    ).get("NDVI")
+    )
+    ndvi_value = ndvi_stats.get("NDVI", 0)
 
     chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").select("precipitation")
     recent_total_img = chirps.filterBounds(polygon).filterDate(recent_start, end_date).sum()
-    recent_total = recent_total_img.reduceRegion(
+    recent_total_stats = recent_total_img.reduceRegion(
         reducer=ee.Reducer.mean(), geometry=polygon, scale=5500, maxPixels=1_000_000
-    ).get("precipitation")
+    )
+    recent_total = recent_total_stats.get("precipitation", 0)
 
     baseline_daily_img = chirps.filterBounds(polygon).filterDate(baseline_start, baseline_end).mean()
-    baseline_daily = baseline_daily_img.reduceRegion(
+    baseline_daily_stats = baseline_daily_img.reduceRegion(
         reducer=ee.Reducer.mean(), geometry=polygon, scale=5500, maxPixels=1_000_000
-    ).get("precipitation")
+    )
+    baseline_daily = baseline_daily_stats.get("precipitation", 0)
 
     ndvi_mean = _safe_float(ndvi_value.getInfo(), 0.0)
     rainfall_recent_mm = _safe_float(recent_total.getInfo(), 0.0)
