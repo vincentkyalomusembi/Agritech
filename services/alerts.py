@@ -2,14 +2,48 @@ from __future__ import annotations
 
 from services.gee import get_gee_insights
 from services.weather import get_weather
-from services.weather import get_weather
 
 
 def get_alerts(county: str):
     county = (county or "").strip().title()
     if not county:
         return []
-    return [f"No active alerts for {county}."]
+
+    alerts = []
+
+    gee = get_gee_insights(county)
+    weather = get_weather(county)
+
+    if gee.get("status") == "ok":
+        metrics = gee.get("metrics", {})
+        rainfall_anomaly = metrics.get("rainfall_anomaly_pct")
+        ndvi = metrics.get("ndvi_mean")
+        alert_level = (gee.get("alert_level") or "unknown").upper()
+
+        alerts.append(f"GEE alert for {county}: {alert_level} risk.")
+        alerts.append(f"NDVI: {ndvi}")
+        alerts.append(f"Rainfall anomaly: {rainfall_anomaly}%")
+
+        if isinstance(rainfall_anomaly, (int, float)) and rainfall_anomaly <= -40:
+            alerts.append("Drought stress risk is high; conserve water and prioritize drought-tolerant crops.")
+        elif isinstance(rainfall_anomaly, (int, float)) and rainfall_anomaly > 20:
+            alerts.append("Excess rainfall risk; improve drainage and monitor fungal disease.")
+
+    temp = weather.get("temp")
+    humidity = weather.get("humidity")
+    condition = str(weather.get("condition", "")).lower()
+
+    if isinstance(temp, (int, float)) and temp >= 30:
+        alerts.append(f"High heat warning: {temp}°C may stress crops and livestock.")
+    if isinstance(humidity, (int, float)) and humidity >= 80:
+        alerts.append(f"High humidity warning: {humidity}% may increase disease pressure.")
+    if "rain" in condition:
+        alerts.append(f"Weather note: {weather.get('condition')} in {county}; check drainage and spray timing.")
+
+    if not alerts:
+        alerts.append(f"No active alerts for {county}.")
+
+    return alerts
 
 
 def _subscription_gate(subscribed: bool):
