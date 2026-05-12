@@ -1,67 +1,126 @@
 """
-models/ai_model.py
-Decision tree model for crop/livestock recommendation.
+models/ai_models.py
+Decision-tree model for crop/livestock recommendation.
 
-Fixes vs original friendly branch:
-  - Encoders (soil_type, farm_type) are saved alongside the model in the
-    same .pkl bundle so predict() always works after a server restart.
-  - Paths come from core.config — no more hardcoded strings.
-  - train_and_save() and load_model() are explicit public functions.
-  - predict() is a clean callable: give it raw input, get a recommendation.
-  - Auto-trains on startup if .pkl is missing (called from app.py lifespan).
+Feature set (v2)
+----------------
+  avg_rainfall       — annual mean mm
+  avg_temp           — annual mean °C
+  elevation_m        — metres above sea level
+  irrigation         — 0 rainfed | 1 irrigated
+  market_price_index — 1–5 (local market demand/price signal)
+  soil_enc           — LabelEncoded soil_type
+  farm_enc           — LabelEncoded farm_type
+
+outcome column (0/1) in the CSV marks historically failed combinations so
+the model learns both what works and what doesn't.
 
 Bundle saved as:
     {
-        "model":        DecisionTreeClassifier,
-        "soil_encoder": LabelEncoder,   # fitted on ['clay','loamy','sandy']
-        "farm_encoder": LabelEncoder,   # fitted on ['crop','livestock']
+        "model":        RandomForestClassifier,
+        "soil_encoder": LabelEncoder,
+        "farm_encoder": LabelEncoder,
+        "feature_cols": list[str],   # order matters for predict()
     }
 """
 
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 import joblib
 
 from core.config import settings
 
 
+# ── Feature column order — must stay in sync with predict() ──────────────────
+# market_price_index is intentionally excluded from model features.
+# It reflects local market conditions, not agronomic suitability — including it
+# causes the forest to learn spurious correlations (e.g. low MPI → tea because
+# all tea-producing counties happen to have high MPI). MPI is returned as
+# context in the recommendation payload but does not influence crop prediction.
+FEATURE_COLS = [
+    "avg_rainfall",
+    "avg_temp",
+    "elevation_m",
+    "irrigation",
+    "soil_enc",
+    "farm_enc",
+]
+
+
 # ── Training ──────────────────────────────────────────────────────────────────
 
 def train_and_save() -> dict:
     """
-    Reads seed_data.csv, trains a DecisionTreeClassifier, and saves the model
+    Reads seed_data.csv, trains a RandomForestClassifier, and saves the model
     + encoders as a single bundle to settings.MODEL_PATH.
 
-    Returns the loaded bundle dict so the caller can use it immediately
-    without a second disk read.
+    Uses outcome column to weight samples:
+      outcome=1  → normal weight
+      outcome=0  → higher weight (2×) so failures are not ignored
+
+    Returns the bundle dict.
     """
     df = pd.read_csv(settings.SEED_DATA_PATH)
 
-    # Fit encoders on the full dataset so all known values are covered
+    # ── Validate required columns ─────────────────────────────────────────────
+    required = {"soil_type", "farm_type", "avg_rainfall", "avg_temp",
+                "elevation_m", "irrigation", "market_price_index",
+                "recommendation", "outcome"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"seed_data.csv is missing columns: {missing}\n"
+            "Re-run: python -m db.seed or rebuild seed_data.csv."
+        )
+
+    # ── Encode categoricals ───────────────────────────────────────────────────
     soil_encoder = LabelEncoder().fit(df["soil_type"])
     farm_encoder = LabelEncoder().fit(df["farm_type"])
 
     df["soil_enc"] = soil_encoder.transform(df["soil_type"])
     df["farm_enc"] = farm_encoder.transform(df["farm_type"])
 
-    X = df[["avg_rainfall", "avg_temp", "soil_enc", "farm_enc"]]
+    X = df[FEATURE_COLS]
     y = df["recommendation"]
 
-    model = DecisionTreeClassifier(max_depth=5, random_state=42)
-    model.fit(X, y)
+    # Weight failed outcomes 2× so the model learns from counter-examples
+    sample_weight = df["outcome"].apply(lambda o: 1.0 if o == 1 else 2.0)
+
+    # RandomForest generalises better than a single tree for the extra features
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=8,
+        min_samples_leaf=2,
+        random_state=42,
+    )
+    model.fit(X, y, sample_weight=sample_weight)
 
     bundle = {
-        "model": model,
+        "model":        model,
         "soil_encoder": soil_encoder,
         "farm_encoder": farm_encoder,
+        "feature_cols": FEATURE_COLS,
     }
 
     settings.MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(bundle, settings.MODEL_PATH)
 
-    print(f"[ai_model] Trained on {len(df)} rows → saved to {settings.MODEL_PATH}")
+    print(f"[ai_model] Trained on {len(df)} rows ({df['outcome'].sum():.0f} positive, "
+          f"{(1-df['outcome']).sum():.0f} counter-examples)")
     print(f"[ai_model] Classes: {list(model.classes_)}")
+    print(f"[ai_model] Saved → {settings.MODEL_PATH}")
+
+    # Feature importance summary
+    importance = sorted(
+        zip(FEATURE_COLS, model.feature_importances_),
+        key=lambda x: x[1], reverse=True,
+    )
+    print("[ai_model] Feature importances:")
+    for feat, imp in importance:
+        bar = "█" * int(imp * 40)
+        print(f"  {feat:<22} {imp:.3f}  {bar}")
+
     return bundle
 
 
@@ -69,22 +128,24 @@ def train_and_save() -> dict:
 
 def load_model() -> dict:
     """
-    Loads the model bundle from disk.
-    If the .pkl doesn't exist, trains and saves it first (auto-train on startup).
-
-    Returns:
-        {
-            "model":        DecisionTreeClassifier,
-            "soil_encoder": LabelEncoder,
-            "farm_encoder": LabelEncoder,
-        }
+    Loads the bundle from disk, auto-training if the .pkl is missing
+    or was built with the old feature set (missing feature_cols key).
     """
-    if not settings.MODEL_PATH.exists():
-        print("[ai_model] No .pkl found — training now...")
-        return train_and_save()
+    needs_retrain = True
 
-    bundle = joblib.load(settings.MODEL_PATH)
-    print(f"[ai_model] Loaded model from {settings.MODEL_PATH}")
+    if settings.MODEL_PATH.exists():
+        bundle = joblib.load(settings.MODEL_PATH)
+        # If bundle was trained without the new features, retrain
+        if "feature_cols" in bundle and bundle["feature_cols"] == FEATURE_COLS:
+            print(f"[ai_model] Loaded model from {settings.MODEL_PATH}")
+            needs_retrain = False
+        else:
+            print("[ai_model] Stale model detected (missing new features) — retraining...")
+
+    if needs_retrain:
+        print("[ai_model] Training model...")
+        bundle = train_and_save()
+
     return bundle
 
 
@@ -96,26 +157,31 @@ def predict(
     avg_temp: float,
     soil_type: str,
     farm_type: str,
+    elevation_m: float = 1000,
+    irrigation: int = 0,
+    market_price_index: int = 3,
 ) -> str:
     """
-    Predicts the best crop or livestock recommendation from raw input values.
+    Predicts the best crop or livestock recommendation.
 
     Args:
-        bundle:       The dict returned by load_model() or train_and_save().
-        avg_rainfall: Annual rainfall in mm.
-        avg_temp:     Average temperature in °C.
-        soil_type:    One of 'sandy', 'loamy', 'clay'.
-        farm_type:    One of 'crop', 'livestock'.
+        bundle:             Model bundle from load_model() / train_and_save().
+        avg_rainfall:       Annual rainfall mm.
+        avg_temp:           Average temperature °C.
+        soil_type:          'sandy' | 'loamy' | 'clay' | 'peaty'
+        farm_type:          'crop' | 'livestock'
+        elevation_m:        Metres above sea level (default 1000m = Kenyan mean).
+        irrigation:         0=rainfed, 1=irrigated.
+        market_price_index: 1–5 local market demand score.
 
     Returns:
-        Recommendation string e.g. 'maize', 'goat', 'beans'.
-        Falls back to 'maize' if an unseen label is passed (safe default).
+        Recommendation string e.g. 'maize', 'dairy_cow'.
+        Falls back gracefully on unseen label inputs.
     """
-    model: DecisionTreeClassifier = bundle["model"]
-    soil_encoder: LabelEncoder = bundle["soil_encoder"]
-    farm_encoder: LabelEncoder = bundle["farm_encoder"]
+    model         = bundle["model"]
+    soil_encoder  = bundle["soil_encoder"]
+    farm_encoder  = bundle["farm_encoder"]
 
-    # Handle unseen soil/farm labels gracefully
     soil_type = soil_type.lower().strip()
     farm_type = farm_type.lower().strip()
 
@@ -127,19 +193,19 @@ def predict(
         soil_type = "loamy"
 
     if farm_type not in known_farms:
-        print(f"[ai_model] Unknown farm type '{farm_type}', defaulting to 'crop'")
+        print(f"[ai_model] Unknown farm_type '{farm_type}', defaulting to 'crop'")
         farm_type = "crop"
 
     soil_enc = soil_encoder.transform([soil_type])[0]
     farm_enc = farm_encoder.transform([farm_type])[0]
 
-    import pandas as _pd
-    X = _pd.DataFrame(
-        [[avg_rainfall, avg_temp, soil_enc, farm_enc]],
-        columns=["avg_rainfall", "avg_temp", "soil_enc", "farm_enc"],
+    X = pd.DataFrame(
+        [[avg_rainfall, avg_temp, elevation_m, irrigation,
+          soil_enc, farm_enc]],
+        columns=FEATURE_COLS,
     )
-    prediction = model.predict(X)[0]
-    return str(prediction)
+
+    return str(model.predict(X)[0])
 
 
 # ── Standalone retrain ────────────────────────────────────────────────────────

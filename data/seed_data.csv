@@ -1,10 +1,167 @@
-county,soil_type,avg_rainfall,avg_temp,farm_type,recommendation
-Makueni,sandy,350,26,crop,sorghum
-Makueni,sandy,350,26,livestock,goat
-Nyeri,loamy,1200,20,crop,maize
-Nyeri,loamy,1200,20,livestock,dairy_cow
-Kitui,sandy,250,28,crop,green_grams
-Kilifi,sandy,900,30,livestock,chicken
-Nakuru,loamy,800,22,crop,beans
-Embu,clay,1000,21,crop,maize
-Baringo,sandy,200,29,livestock,goat
+county,soil_type,avg_rainfall,avg_temp,elevation_m,irrigation,market_price_index,farm_type,recommendation,outcome
+Mombasa,sandy,900,28,10,0,4,crop,cassava,1
+Mombasa,loamy,900,28,15,1,5,crop,vegetables,1
+Mombasa,sandy,900,28,10,0,3,livestock,chicken,1
+Kwale,sandy,900,28,80,0,3,crop,cassava,1
+Kwale,loamy,1000,27,300,1,4,crop,maize,1
+Kwale,sandy,900,28,80,0,3,livestock,goat,1
+Kilifi,sandy,900,30,30,0,3,crop,cassava,1
+Kilifi,loamy,1000,28,200,1,4,crop,maize,1
+Kilifi,sandy,900,30,30,0,3,livestock,chicken,1
+Tana River,sandy,350,31,20,0,2,crop,sorghum,1
+Tana River,sandy,350,31,20,1,3,crop,maize,1
+Tana River,sandy,350,31,20,0,2,livestock,camel,1
+Lamu,sandy,700,29,5,0,3,crop,coconut,1
+Lamu,sandy,700,29,5,1,4,crop,vegetables,1
+Lamu,sandy,700,29,5,0,3,livestock,goat,1
+Taita Taveta,loamy,750,25,900,0,3,crop,beans,1
+Taita Taveta,loamy,1000,22,1500,0,4,crop,maize,1
+Taita Taveta,sandy,500,27,400,0,2,crop,sorghum,1
+Taita Taveta,loamy,750,25,900,0,3,livestock,goat,1
+Garissa,sandy,200,33,130,0,2,crop,green_grams,1
+Garissa,sandy,200,33,130,1,3,crop,sorghum,1
+Garissa,sandy,200,33,130,0,2,livestock,camel,1
+Wajir,sandy,200,32,250,0,1,crop,green_grams,1
+Wajir,sandy,200,32,250,0,1,livestock,camel,1
+Mandera,sandy,180,34,230,0,1,crop,green_grams,1
+Mandera,sandy,180,34,230,0,1,livestock,camel,1
+Marsabit,sandy,350,22,1300,0,2,crop,sorghum,1
+Marsabit,loamy,600,18,1600,0,3,crop,beans,1
+Marsabit,sandy,350,22,1300,0,2,livestock,camel,1
+Isiolo,sandy,300,28,400,0,2,crop,green_grams,1
+Isiolo,sandy,300,28,400,1,3,crop,sorghum,1
+Isiolo,sandy,300,28,400,0,2,livestock,goat,1
+Meru,loamy,1200,20,1500,0,5,crop,maize,1
+Meru,loamy,1200,20,1500,1,5,crop,tea,1
+Meru,sandy,700,24,800,0,3,crop,sorghum,1
+Meru,loamy,1200,20,1500,0,4,livestock,dairy_cow,1
+Tharaka-Nithi,loamy,900,22,1200,0,4,crop,maize,1
+Tharaka-Nithi,sandy,500,25,700,0,3,crop,sorghum,1
+Tharaka-Nithi,loamy,900,22,1200,0,4,livestock,dairy_cow,1
+Embu,clay,1000,21,1300,0,4,crop,maize,1
+Embu,loamy,1200,19,1600,0,5,crop,tea,1
+Embu,sandy,600,24,800,0,3,crop,beans,1
+Embu,clay,1000,21,1300,0,4,livestock,dairy_cow,1
+Kitui,sandy,250,28,1000,0,2,crop,green_grams,1
+Kitui,sandy,500,25,1200,0,3,crop,sorghum,1
+Kitui,loamy,700,22,1400,1,4,crop,maize,1
+Kitui,sandy,250,28,1000,0,2,livestock,goat,1
+Machakos,sandy,600,24,1500,0,3,crop,sorghum,1
+Machakos,loamy,800,21,1700,0,4,crop,maize,1
+Machakos,sandy,600,24,1500,1,4,crop,beans,1
+Machakos,sandy,600,24,1500,0,3,livestock,goat,1
+Makueni,sandy,350,26,1000,0,2,crop,sorghum,1
+Makueni,sandy,500,24,1200,1,3,crop,maize,1
+Makueni,sandy,350,26,1000,0,2,livestock,goat,1
+Nyandarua,loamy,1100,16,2500,0,4,crop,potato,1
+Nyandarua,loamy,1100,16,2500,0,4,crop,wheat,1
+Nyandarua,loamy,1100,16,2500,0,4,livestock,dairy_cow,1
+Nyeri,loamy,1200,20,1700,0,5,crop,maize,1
+Nyeri,loamy,1400,17,2000,0,5,crop,tea,1
+Nyeri,loamy,1200,20,1700,0,5,livestock,dairy_cow,1
+Kirinyaga,loamy,1300,20,1200,0,5,crop,rice,1
+Kirinyaga,clay,1300,20,1100,1,5,crop,rice,1
+Kirinyaga,loamy,1300,20,1200,0,5,livestock,dairy_cow,1
+Murang'a,loamy,1150,20,1500,0,4,crop,maize,1
+Murang'a,loamy,1500,17,1900,0,5,crop,tea,1
+Murang'a,loamy,1150,20,1500,0,4,livestock,dairy_cow,1
+Kiambu,loamy,1100,19,1700,0,5,crop,maize,1
+Kiambu,loamy,1100,19,1700,1,5,crop,vegetables,1
+Kiambu,loamy,1100,19,1700,0,5,livestock,dairy_cow,1
+Turkana,sandy,200,30,400,0,1,crop,green_grams,1
+Turkana,sandy,200,30,400,1,2,crop,sorghum,1
+Turkana,sandy,200,30,400,0,1,livestock,camel,1
+West Pokot,loamy,700,22,1800,0,3,crop,sorghum,1
+West Pokot,loamy,1000,19,2200,0,4,crop,maize,1
+West Pokot,loamy,700,22,1800,0,3,livestock,goat,1
+Samburu,sandy,350,25,900,0,2,crop,sorghum,1
+Samburu,loamy,600,21,1400,0,3,crop,beans,1
+Samburu,sandy,350,25,900,0,2,livestock,camel,1
+Trans Nzoia,loamy,1100,19,1850,0,5,crop,maize,1
+Trans Nzoia,clay,1200,18,1900,0,5,crop,wheat,1
+Trans Nzoia,loamy,1100,19,1850,0,5,livestock,dairy_cow,1
+Uasin Gishu,loamy,1000,18,2100,0,5,crop,wheat,1
+Uasin Gishu,loamy,1200,17,2200,0,5,crop,maize,1
+Uasin Gishu,loamy,1000,18,2100,0,5,livestock,dairy_cow,1
+Elgeyo-Marakwet,loamy,1100,18,2000,0,4,crop,maize,1
+Elgeyo-Marakwet,loamy,1300,16,2400,0,4,crop,tea,1
+Elgeyo-Marakwet,loamy,1100,18,2000,0,4,livestock,dairy_cow,1
+Nandi,loamy,1500,18,1900,0,5,crop,tea,1
+Nandi,loamy,1200,19,1700,0,4,crop,maize,1
+Nandi,loamy,1500,18,1900,0,5,livestock,dairy_cow,1
+Baringo,sandy,200,29,900,0,2,crop,sorghum,1
+Baringo,loamy,700,22,1500,0,3,crop,maize,1
+Baringo,sandy,200,29,900,0,2,livestock,goat,1
+Laikipia,loamy,650,20,1700,0,3,crop,beans,1
+Laikipia,loamy,800,19,1900,1,4,crop,maize,1
+Laikipia,sandy,450,23,1300,0,2,crop,sorghum,1
+Laikipia,loamy,650,20,1700,0,3,livestock,beef_cattle,1
+Nakuru,loamy,800,22,1900,0,5,crop,maize,1
+Nakuru,loamy,1000,19,2100,0,5,crop,wheat,1
+Nakuru,loamy,800,22,1900,0,5,livestock,dairy_cow,1
+Narok,clay,700,21,1900,0,4,crop,wheat,1
+Narok,loamy,800,20,2000,0,4,crop,maize,1
+Narok,clay,700,21,1900,0,4,livestock,beef_cattle,1
+Kajiado,sandy,450,24,1600,0,3,crop,beans,1
+Kajiado,loamy,700,21,1800,1,4,crop,maize,1
+Kajiado,sandy,450,24,1600,0,3,livestock,beef_cattle,1
+Kericho,loamy,1800,17,2000,0,5,crop,tea,1
+Kericho,loamy,1400,18,1800,0,5,crop,maize,1
+Kericho,loamy,1800,17,2000,0,5,livestock,dairy_cow,1
+Bomet,loamy,1600,18,2000,0,5,crop,tea,1
+Bomet,loamy,1200,19,1700,0,4,crop,maize,1
+Bomet,loamy,1600,18,2000,0,5,livestock,dairy_cow,1
+Kakamega,loamy,2000,22,1500,0,5,crop,maize,1
+Kakamega,loamy,2000,22,1500,1,5,crop,sugarcane,1
+Kakamega,loamy,2000,22,1500,0,5,livestock,dairy_cow,1
+Vihiga,loamy,1800,21,1500,0,4,crop,maize,1
+Vihiga,loamy,1800,21,1500,0,4,livestock,dairy_cow,1
+Bungoma,loamy,1500,21,1500,0,5,crop,maize,1
+Bungoma,loamy,1500,21,1500,1,5,crop,sugarcane,1
+Bungoma,loamy,1500,21,1500,0,5,livestock,dairy_cow,1
+Busia,clay,1400,23,1100,0,4,crop,maize,1
+Busia,clay,1400,23,1100,1,5,crop,rice,1
+Busia,clay,1400,23,1100,0,4,livestock,chicken,1
+Siaya,clay,1200,24,1200,0,4,crop,sorghum,1
+Siaya,clay,1200,24,1200,1,5,crop,rice,1
+Siaya,clay,1200,24,1200,0,4,livestock,fish_farming,1
+Kisumu,clay,1100,25,1130,1,5,crop,rice,1
+Kisumu,loamy,1100,25,1200,0,4,crop,maize,1
+Kisumu,clay,1100,25,1130,0,5,livestock,fish_farming,1
+Homa Bay,clay,1000,26,1200,0,3,crop,sorghum,1
+Homa Bay,clay,1000,26,1200,1,4,crop,rice,1
+Homa Bay,clay,1000,26,1200,0,3,livestock,fish_farming,1
+Migori,loamy,1300,23,1200,0,4,crop,maize,1
+Migori,clay,1300,23,1100,1,5,crop,rice,1
+Migori,loamy,1300,23,1200,0,4,livestock,dairy_cow,1
+Kisii,loamy,1800,19,1800,0,5,crop,tea,1
+Kisii,loamy,1400,20,1600,0,5,crop,maize,1
+Kisii,loamy,1800,19,1800,0,5,livestock,dairy_cow,1
+Nyamira,loamy,1900,18,1900,0,5,crop,tea,1
+Nyamira,loamy,1500,19,1700,0,4,crop,maize,1
+Nyamira,loamy,1900,18,1900,0,5,livestock,dairy_cow,1
+Nairobi,loamy,850,18,1670,1,5,crop,vegetables,1
+Nairobi,loamy,850,18,1670,0,4,crop,beans,1
+Nairobi,loamy,850,18,1670,1,5,livestock,chicken,1
+Garissa,sandy,200,33,130,0,1,crop,tea,0
+Wajir,sandy,200,32,250,0,1,crop,maize,0
+Turkana,sandy,200,30,400,0,1,crop,tea,0
+Nyandarua,loamy,1100,16,2500,0,3,crop,cassava,0
+Makueni,sandy,350,26,1000,0,2,crop,rice,0
+Baringo,sandy,200,29,900,0,1,crop,rice,0
+Kilifi,sandy,900,30,30,0,2,crop,tea,0
+Mombasa,sandy,900,28,10,0,2,crop,tea,0
+Nyeri,loamy,1200,20,1700,0,3,livestock,camel,0
+Kericho,loamy,1800,17,2000,0,3,livestock,camel,0
+Garissa,sandy,220,32,130,0,1,crop,green_grams,1
+Garissa,sandy,180,34,130,0,1,crop,green_grams,1
+Wajir,sandy,190,31,250,0,1,crop,green_grams,1
+Mandera,sandy,160,35,230,0,1,crop,green_grams,1
+Turkana,sandy,180,31,400,0,1,crop,green_grams,1
+Turkana,sandy,220,29,400,0,1,crop,green_grams,1
+Isiolo,sandy,280,29,400,0,1,crop,green_grams,1
+Marsabit,sandy,320,23,1300,0,1,crop,sorghum,1
+Garissa,sandy,200,33,130,0,1,crop,tea,0
+Wajir,sandy,200,32,250,0,1,crop,tea,0
+Turkana,sandy,200,30,400,0,1,crop,tea,0
+Mandera,sandy,180,34,230,0,1,crop,tea,0

@@ -66,6 +66,9 @@ def _supabase_get_county(county: str, farm_type: str) -> dict | None:
                 "soil_type":           r["soil_type"],
                 "avg_rainfall":        int(r["avg_rainfall"]),
                 "avg_temp":            float(r["avg_temp"]),
+                "elevation_m":         int(r.get("elevation_m") or 1000),
+                "irrigation":          int(r.get("irrigation") or 0),
+                "market_price_index":  int(r.get("market_price_index") or 3),
                 "farm_type":           r["farm_type"],
                 "csv_recommendation":  r["recommendation"],
                 "source":              "supabase",
@@ -121,13 +124,16 @@ def _csv_get_county(county: str, farm_type: str) -> dict | None:
     row = farm_rows.iloc[0] if not farm_rows.empty else county_rows.iloc[0]
 
     return {
-        "county":             row["county"],
-        "soil_type":          row["soil_type"],
-        "avg_rainfall":       int(row["avg_rainfall"]),
-        "avg_temp":           float(row["avg_temp"]),
-        "farm_type":          row["farm_type"],
-        "csv_recommendation": row["recommendation"],
-        "source":             "csv",
+        "county":              row["county"],
+        "soil_type":           row["soil_type"],
+        "avg_rainfall":        int(row["avg_rainfall"]),
+        "avg_temp":            float(row["avg_temp"]),
+        "elevation_m":         int(row["elevation_m"]) if "elevation_m" in row else 1000,
+        "irrigation":          int(row["irrigation"]) if "irrigation" in row else 0,
+        "market_price_index":  int(row["market_price_index"]) if "market_price_index" in row else 3,
+        "farm_type":           row["farm_type"],
+        "csv_recommendation":  row["recommendation"],
+        "source":              "csv",
     }
 
 
@@ -206,6 +212,9 @@ def build_recommendation(county: str, farm_type: str, weather: dict | None) -> d
             avg_temp=temp,
             soil_type=county_data["soil_type"],
             farm_type=farm_type,
+            elevation_m=county_data.get("elevation_m", 1000),
+            irrigation=county_data.get("irrigation", 0),
+            market_price_index=county_data.get("market_price_index", 3),
         )
         prediction_source = "model"
     except Exception as e:
