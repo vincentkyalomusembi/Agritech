@@ -1,35 +1,3 @@
-"""
-routes/ussd.py
-Africa's Talking USSD callback handler.
-
-Navigation model
-----------------
-Uses text.split("*") — Africa's Talking always sends the full session path
-in `text`, so navigation is stateless. A server restart never drops a user
-mid-flow because we never rely on in-memory state for menu position.
-
-    ""          -> user just dialled         -> main menu
-    "1"         -> pressed 1 on main menu    -> county list
-    "1*3"       -> picked county #3          -> farm type menu
-    "1*3*2"     -> picked livestock          -> recommendation + END
-
-Session store (db/sessions.py)
--------------------------------
-We DO need server-side state for data that can't live in the menu path:
-  - county, farm_type (remembered across dials so we skip asking twice)
-  - name (shown in greeting once onboarding is done)
-  - onboarded: bool (controls whether onboarding runs on first dial)
-
-This is written to SQLite now (zero deps) and swapped for Supabase in Phase 1
-by changing one function in db/sessions.py — nothing here changes.
-
-CON / END rules
----------------
-  CON  = session continues, user can press more keys
-  END  = session ends, user reads final message and hangs up
-  182-char hard limit on CON bodies (Africa's Talking silently truncates)
-"""
-
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse
 
@@ -42,20 +10,20 @@ router = APIRouter()
 MAX_CON_LEN = 182    # Africa's Talking CON body hard limit
 
 
-# ── Response helpers ──────────────────────────────────────────────────────────
+#  Response helpers 
 
 def con(text: str) -> PlainTextResponse:
-    """Continue — user stays in session."""
+    """Continue user stays in session."""
     body = text[:MAX_CON_LEN]
     return PlainTextResponse(f"CON {body}")
 
 
 def end(text: str) -> PlainTextResponse:
-    """End — session closes after user reads."""
+    """End session closes after user reads."""
     return PlainTextResponse(f"END {text}")
 
 
-# ── Onboarding ────────────────────────────────────────────────────────────────
+#  Onboarding 
 # First-time users complete a short onboarding before seeing the main menu.
 # Onboarding path: name -> county -> farm_type
 # Stored to session so it's never asked again.
@@ -116,7 +84,7 @@ def _handle_onboarding(steps: list, phone_number: str, session: dict) -> PlainTe
     return con("Welcome to Agritech AI. Enter your name:")
 
 
-# ── Main menu ─────────────────────────────────────────────────────────────────
+#  Main menu 
 
 def _main_menu(name: str = "Farmer") -> str:
     return (
@@ -127,7 +95,7 @@ def _main_menu(name: str = "Farmer") -> str:
     )
 
 
-# ── County menu ───────────────────────────────────────────────────────────────
+#  County menu 
 
 def _county_menu() -> str:
     counties = list_counties()
@@ -136,7 +104,7 @@ def _county_menu() -> str:
     return "\n".join(lines)
 
 
-# ── Farm type menu ────────────────────────────────────────────────────────────
+#  Farm type menu 
 
 def _farm_type_menu(county: str) -> str:
     return (
@@ -147,7 +115,7 @@ def _farm_type_menu(county: str) -> str:
     )
 
 
-# ── Recommendation screen ─────────────────────────────────────────────────────
+#  Recommendation screen 
 
 def _recommendation_screen(county: str, farm_type: str) -> str:
     weather = get_weather(county)
@@ -175,7 +143,7 @@ def _recommendation_screen(county: str, farm_type: str) -> str:
     return "\n".join(lines)
 
 
-# ── Profile screen ────────────────────────────────────────────────────────────
+#  Profile screen 
 
 def _profile_screen(session: dict) -> str:
     return (
@@ -188,7 +156,7 @@ def _profile_screen(session: dict) -> str:
     )
 
 
-# ── USSD callback ─────────────────────────────────────────────────────────────
+#  USSD callback 
 
 @router.post("/ussd", response_class=PlainTextResponse)
 async def ussd_callback(request: Request):
@@ -199,28 +167,28 @@ async def ussd_callback(request: Request):
     steps = [s for s in text.split("*") if s != ""]
     session = get_session(phone_number)
 
-    # ── Onboarding gate ───────────────────────────────────────────────────
+    #  Onboarding gate 
     # New users go through a 3-step onboarding before seeing the main menu.
     if _needs_onboarding(session):
         return _handle_onboarding(steps, phone_number, session)
 
     name = session.get("name", "Farmer")
 
-    # ── Level 0: main menu ────────────────────────────────────────────────
+    #  Level 0: main menu 
     if len(steps) == 0:
         return con(_main_menu(name))
 
     option = steps[0]
 
-    # ── Option 1: Recommendation ──────────────────────────────────────────
+    #  Option 1: Recommendation 
     if option == "1":
 
-        # Use saved county if we have it — skip asking
+        # Use saved county if we have it skip asking
         saved_county = session.get("county")
 
         if len(steps) == 1:
             if saved_county:
-                # Skip county selection — go straight to farm type
+                # Skip county selection go straight to farm type
                 return con(
                     f"County: {saved_county}\n"
                     "Farm type:\n"
@@ -299,7 +267,7 @@ async def ussd_callback(request: Request):
             except (ValueError, IndexError):
                 return con("Invalid input. Start again.")
 
-    # ── Option 2: Profile ─────────────────────────────────────────────────
+    #  Option 2: Profile 
     elif option == "2":
         if len(steps) == 1:
             return con(_profile_screen(session))
@@ -332,7 +300,7 @@ async def ussd_callback(request: Request):
                 set_session(phone_number, {"farm_type": farm_type})
                 return end(f"Farm type updated to {farm_type}.")
 
-    # ── Option 3: About ───────────────────────────────────────────────────
+    #  Option 3: About 
     elif option == "3":
         return end(
             "Agritech AI\n"

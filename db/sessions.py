@@ -33,7 +33,7 @@ def init_db() -> None:
 def get_session(phone_number:str) -> dict:
     """Returns the session dict for a phone number """
     try:
-        with _get_conn as conn:
+        with _get_conn() as conn:
             row = conn.execute(
                 "SELECT data, updated_at FROM ussd_sessions WHERE phone_number = ?",
                 (phone_number,),
@@ -56,7 +56,7 @@ def get_session(phone_number:str) -> dict:
 def set_session(phone_number:str, data:dict) ->None:
     """Writes or updates a session for the given phone number"""
     try:
-        with _get_conn as conn:
+        with _get_conn() as conn:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO ussd_sessions (phone_number, data, updated_at) 
