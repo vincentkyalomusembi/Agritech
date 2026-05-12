@@ -2,46 +2,128 @@
 routes/ussd.py
 Africa's Talking USSD callback handler.
 
-Key fixes vs friendly branch:
-  - Uses CON / END prefix (required by Africa's Talking — without it the
-    session hangs and the user sees a blank screen)
-  - Uses text.split("*") navigation instead of server-side state dict.
-    This is stateless: the full user path is always in the `text` param,
-    so a server restart never breaks an active session.
-  - 182-character hard limit on CON responses (USSD truncates silently)
-  - Kenya country code appended to county names for OpenWeather accuracy
+Navigation model
+----------------
+Uses text.split("*") — Africa's Talking always sends the full session path
+in `text`, so navigation is stateless. A server restart never drops a user
+mid-flow because we never rely on in-memory state for menu position.
+
+    ""          -> user just dialled         -> main menu
+    "1"         -> pressed 1 on main menu    -> county list
+    "1*3"       -> picked county #3          -> farm type menu
+    "1*3*2"     -> picked livestock          -> recommendation + END
+
+Session store (db/sessions.py)
+-------------------------------
+We DO need server-side state for data that can't live in the menu path:
+  - county, farm_type (remembered across dials so we skip asking twice)
+  - name (shown in greeting once onboarding is done)
+  - onboarded: bool (controls whether onboarding runs on first dial)
+
+This is written to SQLite now (zero deps) and swapped for Supabase in Phase 1
+by changing one function in db/sessions.py — nothing here changes.
+
+CON / END rules
+---------------
+  CON  = session continues, user can press more keys
+  END  = session ends, user reads final message and hangs up
+  182-char hard limit on CON bodies (Africa's Talking silently truncates)
 """
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse
 
+from db.sessions import get_session, set_session
 from models.recommender import build_recommendation, list_counties
 from services.weather import get_weather
 
 router = APIRouter()
 
-MAX_USSD_LEN = 182  # Africa's Talking hard limit for CON responses
+MAX_CON_LEN = 182    # Africa's Talking CON body hard limit
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Response helpers ──────────────────────────────────────────────────────────
 
 def con(text: str) -> PlainTextResponse:
-    """Continue session — user sees menu, can respond."""
-    return PlainTextResponse(f"CON {text[:MAX_USSD_LEN]}")
+    """Continue — user stays in session."""
+    body = text[:MAX_CON_LEN]
+    return PlainTextResponse(f"CON {body}")
 
 
 def end(text: str) -> PlainTextResponse:
-    """End session — user sees message, session closes."""
+    """End — session closes after user reads."""
     return PlainTextResponse(f"END {text}")
+
+
+# ── Onboarding ────────────────────────────────────────────────────────────────
+# First-time users complete a short onboarding before seeing the main menu.
+# Onboarding path: name -> county -> farm_type
+# Stored to session so it's never asked again.
+
+def _needs_onboarding(session: dict) -> bool:
+    return not session.get("onboarded", False)
+
+
+def _handle_onboarding(steps: list, phone_number: str, session: dict) -> PlainTextResponse:
+    """
+    Onboarding is a linear flow prepended before the main menu.
+    steps[0] will be "0" (we route onboarding under a "0*" prefix internally).
+
+    Step count:
+      0 steps  -> ask name
+      1 step   -> got name, ask county
+      2 steps  -> got county, ask farm type
+      3 steps  -> complete, save, redirect to main menu
+    """
+    counties = list_counties()
+
+    if len(steps) == 0:
+        return con(
+            "Welcome to Agritech AI 🌾\n"
+            "Quick setup (3 steps).\n"
+            "Enter your name:"
+        )
+
+    if len(steps) == 1:
+        # Save name, ask county
+        set_session(phone_number, {"name": steps[0]})
+        county_list = "\n".join(f"{i}. {c}" for i, c in enumerate(counties, 1))
+        return con(f"Select your county:\n{county_list}")
+
+    if len(steps) == 2:
+        # Save county choice, ask farm type
+        try:
+            idx = int(steps[1]) - 1
+            if not (0 <= idx < len(counties)):
+                county_list = "\n".join(f"{i}. {c}" for i, c in enumerate(counties, 1))
+                return con(f"Invalid number. Select county:\n{county_list}")
+            set_session(phone_number, {"county": counties[idx]})
+        except ValueError:
+            return con("Enter a number for your county.")
+        return con("Select farm type:\n1. Crop\n2. Livestock")
+
+    if len(steps) >= 3:
+        # Save farm type, mark onboarded
+        farm_map = {"1": "crop", "2": "livestock"}
+        farm_type = farm_map.get(steps[2])
+        if not farm_type:
+            return con("Enter 1 for Crop or 2 for Livestock:")
+        set_session(phone_number, {"farm_type": farm_type, "onboarded": True})
+        session = get_session(phone_number)
+        name = session.get("name", "Farmer")
+        return con(_main_menu(name))
+
+    return con("Welcome to Agritech AI. Enter your name:")
 
 
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
-def _main_menu() -> str:
+def _main_menu(name: str = "Farmer") -> str:
     return (
-        "Welcome to Agritech AI 🌾\n"
-        "1. Get Farm Recommendation\n"
-        "2. About"
+        f"Hi {name} 🌾\n"
+        "1. Get Recommendation\n"
+        "2. My Profile\n"
+        "3. About"
     )
 
 
@@ -50,8 +132,7 @@ def _main_menu() -> str:
 def _county_menu() -> str:
     counties = list_counties()
     lines = ["Select your county:"]
-    for i, county in enumerate(counties, 1):
-        lines.append(f"{i}. {county}")
+    lines += [f"{i}. {c}" for i, c in enumerate(counties, 1)]
     return "\n".join(lines)
 
 
@@ -60,114 +141,204 @@ def _county_menu() -> str:
 def _farm_type_menu(county: str) -> str:
     return (
         f"County: {county}\n"
-        "Select farm type:\n"
+        "Farm type:\n"
         "1. Crop\n"
         "2. Livestock"
     )
 
 
-# ── Recommendation result ─────────────────────────────────────────────────────
+# ── Recommendation screen ─────────────────────────────────────────────────────
 
 def _recommendation_screen(county: str, farm_type: str) -> str:
     weather = get_weather(county)
     result = build_recommendation(county, farm_type, weather)
 
     if not result:
-        return end(f"Sorry, no data found for {county}. Contact us for support.")
+        return f"No data found for {county}. Try again or contact support."
+
+    src = "live" if (weather or {}).get("source") == "openweather" else "est."
+    temp_line = f"🌡 Temp: {weather['temp']}°C ({src})" if weather else ""
 
     lines = [
         f"📍 {result['county']} | {result['farm_type'].title()}",
         f"🌱 Soil: {result['soil_type']}",
-        f"🌧 Avg Rainfall: {result['avg_rainfall']}mm",
+        f"🌧 Rainfall: {result['avg_rainfall']}mm avg",
     ]
-
-    if weather:
-        src = "live" if weather.get("source") == "openweather" else "est."
-        lines.append(f"🌡 Temp: {weather['temp']}°C ({src})")
+    if temp_line:
+        lines.append(temp_line)
 
     lines.append(f"\n✅ Recommended: {result['recommendation'].upper()}")
 
     for note in result["weather_notes"]:
         lines.append(f"⚠ {note}")
 
-    lines.append("\n0. Back to menu")
     return "\n".join(lines)
 
 
-# ── USSD router ───────────────────────────────────────────────────────────────
+# ── Profile screen ────────────────────────────────────────────────────────────
+
+def _profile_screen(session: dict) -> str:
+    return (
+        f"My Profile\n"
+        f"Name: {session.get('name', 'N/A')}\n"
+        f"County: {session.get('county', 'N/A')}\n"
+        f"Farm type: {session.get('farm_type', 'N/A')}\n"
+        "1. Edit county\n"
+        "2. Edit farm type"
+    )
+
+
+# ── USSD callback ─────────────────────────────────────────────────────────────
 
 @router.post("/ussd", response_class=PlainTextResponse)
 async def ussd_callback(request: Request):
-    """
-    Stateless USSD handler using text.split("*") navigation.
-
-    Africa's Talking always sends the full session path in `text`:
-        ""         → user just dialled (show main menu)
-        "1"        → user pressed 1 on main menu
-        "1*2"      → user pressed 1, then 2
-        "1*2*1"    → user pressed 1, then 2, then 1
-    """
     form = await request.form()
+    phone_number: str = form.get("phoneNumber", "")
     text: str = form.get("text", "")
 
     steps = [s for s in text.split("*") if s != ""]
+    session = get_session(phone_number)
+
+    # ── Onboarding gate ───────────────────────────────────────────────────
+    # New users go through a 3-step onboarding before seeing the main menu.
+    if _needs_onboarding(session):
+        return _handle_onboarding(steps, phone_number, session)
+
+    name = session.get("name", "Farmer")
 
     # ── Level 0: main menu ────────────────────────────────────────────────
     if len(steps) == 0:
-        return con(_main_menu())
+        return con(_main_menu(name))
 
-    # ── Level 1: main menu choice ─────────────────────────────────────────
-    if len(steps) == 1:
-        choice = steps[0]
+    option = steps[0]
 
-        if choice == "1":
-            return con(_county_menu())
+    # ── Option 1: Recommendation ──────────────────────────────────────────
+    if option == "1":
 
-        if choice == "2":
-            return end(
-                "Agritech AI — AI-powered farm advice for Kenyan farmers.\n"
-                "Powered by real-time weather + local crop data.\n"
-                "Dial again to get your recommendation."
-            )
+        # Use saved county if we have it — skip asking
+        saved_county = session.get("county")
 
-        return con(f"Invalid option.\n{_main_menu()}")
-
-    # ── Level 2: county selected ──────────────────────────────────────────
-    if len(steps) == 2 and steps[0] == "1":
-        counties = list_counties()
-        try:
-            county_index = int(steps[1]) - 1
-            if 0 <= county_index < len(counties):
-                selected_county = counties[county_index]
-                return con(_farm_type_menu(selected_county))
+        if len(steps) == 1:
+            if saved_county:
+                # Skip county selection — go straight to farm type
+                return con(
+                    f"County: {saved_county}\n"
+                    "Farm type:\n"
+                    "1. Crop\n"
+                    "2. Livestock\n"
+                    "3. Change county"
+                )
             else:
-                return con(f"Invalid county number.\n{_county_menu()}")
-        except ValueError:
-            return con(f"Enter a number.\n{_county_menu()}")
+                return con(_county_menu())
 
-    # ── Level 3: farm type selected → show recommendation ─────────────────
-    if len(steps) == 3 and steps[0] == "1":
-        counties = list_counties()
-        try:
-            county_index = int(steps[1]) - 1
-            if not (0 <= county_index < len(counties)):
-                return con(f"Invalid county.\n{_county_menu()}")
-
-            selected_county = counties[county_index]
-            farm_choice = steps[2]
-
-            if farm_choice == "1":
-                farm_type = "crop"
-            elif farm_choice == "2":
-                farm_type = "livestock"
+        if len(steps) == 2:
+            if saved_county:
+                # steps[1] is farm type choice (or "3" to change county)
+                if steps[1] == "3":
+                    return con(_county_menu())
+                farm_map = {"1": "crop", "2": "livestock"}
+                farm_type = farm_map.get(steps[1])
+                if not farm_type:
+                    return con(f"Enter 1 (Crop) or 2 (Livestock):\n(County: {saved_county})")
+                return end(_recommendation_screen(saved_county, farm_type))
             else:
-                return con(f"Invalid option.\n{_farm_type_menu(selected_county)}")
+                # steps[1] is county index
+                counties = list_counties()
+                try:
+                    idx = int(steps[1]) - 1
+                    if not (0 <= idx < len(counties)):
+                        return con(f"Invalid number.\n{_county_menu()}")
+                    selected = counties[idx]
+                    set_session(phone_number, {"county": selected})
+                    return con(_farm_type_menu(selected))
+                except ValueError:
+                    return con(f"Enter a number.\n{_county_menu()}")
 
-            result_text = _recommendation_screen(selected_county, farm_type)
-            return end(result_text)
+        if len(steps) == 3:
+            if saved_county and steps[1] == "3":
+                # User chose to change county; steps[2] is new county index
+                counties = list_counties()
+                try:
+                    idx = int(steps[2]) - 1
+                    if not (0 <= idx < len(counties)):
+                        return con(f"Invalid.\n{_county_menu()}")
+                    new_county = counties[idx]
+                    set_session(phone_number, {"county": new_county})
+                    return con(_farm_type_menu(new_county))
+                except ValueError:
+                    return con(f"Enter a number.\n{_county_menu()}")
+            else:
+                # No saved county path: steps[1]=county idx, steps[2]=farm type
+                counties = list_counties()
+                try:
+                    idx = int(steps[1]) - 1
+                    if not (0 <= idx < len(counties)):
+                        return con(f"Invalid county.\n{_county_menu()}")
+                    selected = counties[idx]
+                    farm_map = {"1": "crop", "2": "livestock"}
+                    farm_type = farm_map.get(steps[2])
+                    if not farm_type:
+                        return con(f"Enter 1 or 2.\n{_farm_type_menu(selected)}")
+                    return end(_recommendation_screen(selected, farm_type))
+                except ValueError:
+                    return con("Invalid input. Start again.")
 
-        except ValueError:
-            return con("Invalid input. Start again.")
+        if len(steps) == 4:
+            # change-county path: 1*3*<county_idx>*<farm_type>
+            counties = list_counties()
+            try:
+                idx = int(steps[2]) - 1
+                if not (0 <= idx < len(counties)):
+                    return con(f"Invalid county.\n{_county_menu()}")
+                selected = counties[idx]
+                farm_map = {"1": "crop", "2": "livestock"}
+                farm_type = farm_map.get(steps[3])
+                if not farm_type:
+                    return con(f"Enter 1 or 2.\n{_farm_type_menu(selected)}")
+                return end(_recommendation_screen(selected, farm_type))
+            except (ValueError, IndexError):
+                return con("Invalid input. Start again.")
 
-    # ── Handle "0. Back to menu" and any unknown deep path ────────────────
-    return con(_main_menu())
+    # ── Option 2: Profile ─────────────────────────────────────────────────
+    elif option == "2":
+        if len(steps) == 1:
+            return con(_profile_screen(session))
+
+        if len(steps) == 2:
+            if steps[1] == "1":
+                return con(_county_menu())
+            elif steps[1] == "2":
+                return con("Farm type:\n1. Crop\n2. Livestock")
+            return con(f"Invalid.\n{_profile_screen(session)}")
+
+        if len(steps) == 3:
+            if steps[1] == "1":
+                # Edit county
+                counties = list_counties()
+                try:
+                    idx = int(steps[2]) - 1
+                    if not (0 <= idx < len(counties)):
+                        return con(f"Invalid.\n{_county_menu()}")
+                    set_session(phone_number, {"county": counties[idx]})
+                    return end(f"County updated to {counties[idx]}.")
+                except ValueError:
+                    return con(f"Enter a number.\n{_county_menu()}")
+            elif steps[1] == "2":
+                # Edit farm type
+                farm_map = {"1": "crop", "2": "livestock"}
+                farm_type = farm_map.get(steps[2])
+                if not farm_type:
+                    return con("Enter 1 (Crop) or 2 (Livestock):")
+                set_session(phone_number, {"farm_type": farm_type})
+                return end(f"Farm type updated to {farm_type}.")
+
+    # ── Option 3: About ───────────────────────────────────────────────────
+    elif option == "3":
+        return end(
+            "Agritech AI\n"
+            "AI-powered farm advice for Kenyan farmers.\n"
+            "Real-time weather + satellite data + local crop knowledge.\n"
+            "Dial again anytime."
+        )
+
+    return con(_main_menu(name))
