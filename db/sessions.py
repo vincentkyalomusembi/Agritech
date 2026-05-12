@@ -1,58 +1,39 @@
-
-
-import json
+import json 
 import sqlite3
 import time
 from pathlib import Path
 
+
 from core.config import settings
 
-# ── Config ────────────────────────────────────────────────────────────────────
 
+#config
 SESSION_TTL_HOURS = 24
 DB_PATH = settings.DATA_DIR / "sessions.db"
 
-
-# ── Connection ────────────────────────────────────────────────────────────────
-
-def _get_conn() -> sqlite3.Connection:
-    """
-    Returns a SQLite connection to the sessions DB.
-    Phase 1: replace this function body with a psycopg2/asyncpg connection
-    and nothing else in this file needs to change.
-    """
+#connection
+def _get_conn() ->sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def init_db() -> None:
-    """
-    Creates the sessions table if it doesn't exist.
-    Called once at app startup from app.py lifespan.
-    """
     with _get_conn() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS ussd_sessions (
-                phone_number TEXT PRIMARY KEY,
-                data         TEXT NOT NULL,
-                updated_at   REAL NOT NULL
+            phone_number TEXT PRIMARY KEY,
+            data         TEXT NOT NULL,
+            updated_at   REAL NOT NULL
             )
-        """)
-        conn.commit()
+            """
+        )
 
-
-# ── Public API ────────────────────────────────────────────────────────────────
-
-def get_session(phone_number: str) -> dict:
-    """
-    Returns the session dict for a phone number.
-    Returns {} if no session exists or session has expired (TTL).
-    Never raises — safe to call unconditionally in the USSD handler.
-    """
+def get_session(phone_number:str) -> dict:
+    """Returns the session dict for a phone number """
     try:
-        with _get_conn()s as conn:
+        with _get_conn as conn:
             row = conn.execute(
                 "SELECT data, updated_at FROM ussd_sessions WHERE phone_number = ?",
                 (phone_number,),
@@ -60,48 +41,40 @@ def get_session(phone_number: str) -> dict:
 
         if not row:
             return {}
-
+        
         age_hours = (time.time() - row["updated_at"]) / 3600
         if age_hours > SESSION_TTL_HOURS:
             delete_session(phone_number)
             return {}
 
         return json.loads(row["data"])
-
+            
     except Exception as e:
-        print(f"[sessions] get_session error: {e}")
+        print(f"Error getting session {phone_number}: {e}")
         return {}
 
-
-def set_session(phone_number: str, data: dict) -> None:
-    """
-    Upserts the session dict for a phone number.
-    Merges with any existing data so callers can update one field at a time.
-    Never raises.
-    """
+def set_session(phone_number:str, data:dict) ->None:
+    """Writes or updates a session for the given phone number"""
     try:
-        existing = get_session(phone_number)
-        merged = {**existing, **data}
-
-        with _get_conn() as conn:
+        with _get_conn as conn:
             conn.execute(
                 """
-                INSERT INTO ussd_sessions (phone_number, data, updated_at)
+                INSERT OR REPLACE INTO ussd_sessions (phone_number, data, updated_at) 
                 VALUES (?, ?, ?)
-                ON CONFLICT(phone_number) DO UPDATE SET
-                    data       = excluded.data,
-                    updated_at = excluded.updated_at
                 """,
-                (phone_number, json.dumps(merged), time.time()),
+                (
+                    phone_number,
+                    json.dumps(data),
+                    time.time()
+                )
             )
             conn.commit()
-
     except Exception as e:
-        print(f"[sessions] set_session error: {e}")
+        print(f"Error setting session for {phone_number}: {e}")
 
 
-def delete_session(phone_number: str) -> None:
-    """Removes the session for a phone number. Used on TTL expiry or logout."""
+def delete_session(phone_number:str) -> None:
+    """Removes a session"""
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -110,24 +83,19 @@ def delete_session(phone_number: str) -> None:
             )
             conn.commit()
     except Exception as e:
-        print(f"[sessions] delete_session error: {e}")
+        print(f"Error deleting session {phone_number}: {e}")
 
-
-def purge_expired() -> int:
-    """
-    Deletes all sessions older than SESSION_TTL_HOURS.
-    Returns the number of rows deleted.
-    Call this from a nightly cron or the startup lifespan to keep the DB lean.
-    """
+def purge_expired() -> None:
+    """Removes all expired sessions in the background"""
     cutoff = time.time() - (SESSION_TTL_HOURS * 3600)
     try:
         with _get_conn() as conn:
-            cursor = conn.execute(
+            # This will be quick enough - no need for background threading for now
+            conn.execute(
                 "DELETE FROM ussd_sessions WHERE updated_at < ?",
                 (cutoff,),
             )
             conn.commit()
-            return cursor.rowcount
     except Exception as e:
-        print(f"[sessions] purge_expired error: {e}")
-        return 0
+        # Don't crash the app if background cleanup fails
+        print(f"Error purging expired sessions: {e}")
