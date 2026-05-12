@@ -36,6 +36,11 @@ class Settings:
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
 
+    # Auth — JWT
+    JWT_SECRET: str           = os.getenv("JWT_SECRET", "")
+    JWT_EXPIRES_SECONDS: int  = int(os.getenv("JWT_EXPIRES_SECONDS", "86400"))   # 24 h
+    OTP_EXPIRES_SECONDS: int  = int(os.getenv("OTP_EXPIRES_SECONDS", "300"))     # 5 min
+
     # App
     APP_ENV: str = os.getenv("APP_ENV", "development")
     DATA_DIR: Path = BASE_DIR / "data"

@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from routes.ussd import router as ussd_router
 from routes.recommend import router as recommend_router
+from routes.auth import router as auth_router
 
 
 # ── Startup / shutdown ────────────────────────────────────────────────────────
@@ -56,6 +57,7 @@ app.add_middleware(
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(ussd_router)
 app.include_router(recommend_router)
+app.include_router(auth_router)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
