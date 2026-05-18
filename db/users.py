@@ -127,3 +127,129 @@ def get_or_create_user(phone: str) -> dict:
     if user is None:
         user = upsert_user(phone, {"onboarded": False})
     return user
+
+
+# ── Vets & Agri Officers ───────────────────────────────────────────────────────
+# Seeded in db/schema.sql. Local SQLite fallback mirrors the Supabase schema.
+
+import sqlite3 as _sqlite3
+import time as _time_mod
+
+_EXPERTS_DB = settings.DATA_DIR / "agritech.db"
+
+_SEED_VETS = [
+    ("+254700000004", "Dr. Sarah Ochieng",  "Kisumu",     "Nyanza"),
+    ("+254700000005", "Dr. John Kamau",      "Kiambu",     "Central"),
+    ("+254700000006", "Dr. Grace Wanjiru",   "Mombasa",    "Coast"),
+    ("+254700000007", "Dr. Michael Otieno",  "Siaya",      "Nyanza"),
+    ("+254700000008", "Dr. Faith Njeri",     "Nairobi",    "Nairobi"),
+]
+
+_SEED_AGRI = [
+    ("+254700000009", "David Mutiso",      "Machakos",    "Eastern"),
+    ("+254700000010", "Rebecca Chebet",    "Uasin Gishu", "Rift Valley"),
+    ("+254700000011", "Samuel Kiplagat",   "Baringo",     "Rift Valley"),
+    ("+254700000012", "Lucy Wambui",       "Murang'a",    "Central"),
+    ("+254700000013", "Peter Kariuki",     "Kirinyaga",   "Central"),
+]
+
+
+def _expert_conn() -> _sqlite3.Connection:
+    _EXPERTS_DB.parent.mkdir(parents=True, exist_ok=True)
+    conn = _sqlite3.connect(_EXPERTS_DB)
+    conn.row_factory = _sqlite3.Row
+    return conn
+
+
+def _init_expert_tables() -> None:
+    now = _time_mod.time()
+    with _expert_conn() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS vets (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone_number TEXT    NOT NULL UNIQUE,
+                name         TEXT    NOT NULL,
+                county       TEXT    NOT NULL,
+                region       TEXT,
+                active       INTEGER NOT NULL DEFAULT 1,
+                created_at   REAL    NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_vets_county ON vets (county);
+            CREATE TABLE IF NOT EXISTS agri_officers (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone_number TEXT    NOT NULL UNIQUE,
+                name         TEXT    NOT NULL,
+                county       TEXT    NOT NULL,
+                region       TEXT,
+                active       INTEGER NOT NULL DEFAULT 1,
+                created_at   REAL    NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_agri_county ON agri_officers (county);
+        """)
+        conn.executemany(
+            "INSERT OR IGNORE INTO vets (phone_number,name,county,region,created_at) VALUES (?,?,?,?,?)",
+            [(p, n, c, r, now) for p, n, c, r in _SEED_VETS],
+        )
+        conn.executemany(
+            "INSERT OR IGNORE INTO agri_officers (phone_number,name,county,region,created_at) VALUES (?,?,?,?,?)",
+            [(p, n, c, r, now) for p, n, c, r in _SEED_AGRI],
+        )
+        conn.commit()
+
+
+def list_vets(county: str | None = None, limit: int = 3) -> list[dict]:
+    """Returns active vets filtered by county (falls back to all if none in county)."""
+    # ── Supabase ──────────────────────────────────────────────────────────────
+    try:
+        if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+            from supabase import create_client
+            client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            q = client.table("vets").select("*").eq("active", True)
+            if county:
+                q = q.eq("county", county)
+            res = q.limit(limit).execute()
+            if res.data:
+                return res.data
+    except Exception:
+        pass
+
+    # ── Local SQLite ──────────────────────────────────────────────────────────
+    _init_expert_tables()
+    with _expert_conn() as conn:
+        if county:
+            rows = conn.execute(
+                "SELECT * FROM vets WHERE active=1 AND county=? LIMIT ?", (county, limit)
+            ).fetchall()
+            if rows:
+                return [dict(r) for r in rows]
+        rows = conn.execute("SELECT * FROM vets WHERE active=1 LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_agri_officers(county: str | None = None, limit: int = 3) -> list[dict]:
+    """Returns active agri officers filtered by county."""
+    # ── Supabase ──────────────────────────────────────────────────────────────
+    try:
+        if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+            from supabase import create_client
+            client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            q = client.table("agri_officers").select("*").eq("active", True)
+            if county:
+                q = q.eq("county", county)
+            res = q.limit(limit).execute()
+            if res.data:
+                return res.data
+    except Exception:
+        pass
+
+    # ── Local SQLite ──────────────────────────────────────────────────────────
+    _init_expert_tables()
+    with _expert_conn() as conn:
+        if county:
+            rows = conn.execute(
+                "SELECT * FROM agri_officers WHERE active=1 AND county=? LIMIT ?", (county, limit)
+            ).fetchall()
+            if rows:
+                return [dict(r) for r in rows]
+        rows = conn.execute("SELECT * FROM agri_officers WHERE active=1 LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]

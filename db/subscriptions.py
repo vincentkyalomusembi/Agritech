@@ -166,3 +166,116 @@ def is_active(user_id: str) -> bool:
         update_subscription(user_id, {"status": "expired"})
         return False
     return True
+
+
+# ── Phone-number convenience wrappers ─────────────────────────────────────────
+# USSD identifies users by phone number, not UUID.
+# These wrappers handle the phone → user_id lookup (or bypass it for SQLite).
+
+import sqlite3 as _sqlite3
+from core.config import settings as _settings
+
+_SUB_DB_PATH = _settings.DATA_DIR / "agritech.db"
+
+
+def _sub_conn() -> _sqlite3.Connection:
+    _SUB_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = _sqlite3.connect(_SUB_DB_PATH)
+    conn.row_factory = _sqlite3.Row
+    return conn
+
+
+def _init_sub_table() -> None:
+    with _sub_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS local_subscriptions (
+                phone_number TEXT PRIMARY KEY,
+                plan         TEXT NOT NULL DEFAULT 'weekly',
+                status       TEXT NOT NULL DEFAULT 'active',
+                created_at   REAL NOT NULL
+            )
+        """)
+        conn.commit()
+
+
+def get_subscription(phone_number: str) -> dict | None:
+    """
+    Returns the active subscription for a phone number.
+    Tries Supabase first, falls back to local SQLite.
+    """
+    # ── Supabase path ─────────────────────────────────────────────────────────
+    try:
+        if _settings.SUPABASE_URL and _settings.SUPABASE_KEY:
+            from supabase import create_client
+            client = create_client(_settings.SUPABASE_URL, _settings.SUPABASE_KEY)
+            res = (
+                client.table("subscriptions")
+                .select("*")
+                .eq("phone_number", phone_number)
+                .eq("status", "active")
+                .limit(1)
+                .execute()
+            )
+            if res.data:
+                return res.data[0]
+    except Exception:
+        pass
+
+    # ── Local SQLite fallback ─────────────────────────────────────────────────
+    try:
+        _init_sub_table()
+        with _sub_conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM local_subscriptions WHERE phone_number = ? AND status = 'active'",
+                (phone_number,),
+            ).fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        print(f"[subscriptions] get_subscription error: {e}")
+        return None
+
+
+def create_subscription(phone_number: str, plan: str = "weekly") -> dict | None:
+    """
+    Creates or reactivates a subscription for a phone number.
+    Tries Supabase first, falls back to local SQLite.
+    """
+    import time as _time
+
+    # ── Supabase path ─────────────────────────────────────────────────────────
+    try:
+        if _settings.SUPABASE_URL and _settings.SUPABASE_KEY:
+            from supabase import create_client
+            client = create_client(_settings.SUPABASE_URL, _settings.SUPABASE_KEY)
+            res = (
+                client.table("subscriptions")
+                .upsert(
+                    {"phone_number": phone_number, "plan": plan, "status": "active"},
+                    on_conflict="phone_number",
+                )
+                .execute()
+            )
+            if res.data:
+                return res.data[0]
+    except Exception:
+        pass
+
+    # ── Local SQLite fallback ─────────────────────────────────────────────────
+    try:
+        _init_sub_table()
+        with _sub_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO local_subscriptions (phone_number, plan, status, created_at)
+                VALUES (?, ?, 'active', ?)
+                ON CONFLICT(phone_number) DO UPDATE SET
+                    plan   = excluded.plan,
+                    status = 'active'
+                """,
+                (phone_number, plan, _time.time()),
+            )
+            conn.commit()
+        return get_subscription(phone_number)
+    except Exception as e:
+        print(f"[subscriptions] create_subscription error: {e}")
+        return None
