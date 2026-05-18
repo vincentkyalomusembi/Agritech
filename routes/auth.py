@@ -41,6 +41,13 @@ from pydantic import BaseModel, field_validator
 
 from core.config import settings
 from core.jwt import create_token, CurrentUser
+from db.otp_store import (
+    store_otp,
+    get_otp,
+    increment_attempts,
+    delete_otp,
+    MAX_ATTEMPTS,
+)
 from services.africastalking import send_sms
 
 log = logging.getLogger(__name__)
@@ -48,21 +55,7 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-# ── In-memory OTP store (replace with Redis/DB in production) ─────────────────
-#
-# Structure:
-#   _otp_store[phone] = {
-#       "hash":     sha256(otp) hex string,
-#       "expires":  Unix timestamp,
-#       "attempts": int,
-#   }
-#
-# Using sha256 (not bcrypt) for speed — OTPs are short-lived & low-value tokens.
-# In production switch to a DB-backed store (e.g. Supabase otp_store table).
 
-_otp_store: dict[str, dict] = {}
-
-_MAX_ATTEMPTS = 5
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -147,11 +140,8 @@ def request_otp(body: OTPRequest):
     otp   = _generate_otp()
     ttl   = settings.OTP_EXPIRES_SECONDS
 
-    _otp_store[phone] = {
-        "hash":     _hash_otp(otp),
-        "expires":  int(time.time()) + ttl,
-        "attempts": 0,
-    }
+    # Persist to SQLite (survives restarts; auto-replaces any previous OTP)
+    store_otp(phone, _hash_otp(otp))
 
     message = (
         f"Your Agritech AI verification code is: {otp}\n"
@@ -189,8 +179,8 @@ def verify_otp(body: OTPVerify):
 
     The JWT sub claim is the E.164 phone number — matching the USSD identity.
     """
-    phone = body.phone
-    record = _otp_store.get(phone)
+    phone  = body.phone
+    record = get_otp(phone)
 
     # ── No record found ───────────────────────────────────────────────────────
     if not record:
@@ -200,16 +190,17 @@ def verify_otp(body: OTPVerify):
         )
 
     # ── Too many attempts ─────────────────────────────────────────────────────
-    if record["attempts"] >= _MAX_ATTEMPTS:
-        del _otp_store[phone]
+    if record["attempts"] >= MAX_ATTEMPTS:
+        delete_otp(phone)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many failed attempts. Request a new OTP.",
         )
 
     # ── Expired ───────────────────────────────────────────────────────────────
+    # get_otp() already does lazy-delete on expiry; belt-and-suspenders check:
     if time.time() > record["expires"]:
-        del _otp_store[phone]
+        delete_otp(phone)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OTP has expired. Request a new one.",
@@ -217,15 +208,15 @@ def verify_otp(body: OTPVerify):
 
     # ── Wrong OTP ─────────────────────────────────────────────────────────────
     if _hash_otp(body.otp.strip()) != record["hash"]:
-        record["attempts"] += 1
-        remaining = _MAX_ATTEMPTS - record["attempts"]
+        new_attempts = increment_attempts(phone)
+        remaining = MAX_ATTEMPTS - new_attempts
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Incorrect OTP. {remaining} attempt(s) remaining.",
         )
 
     # ── Success ───────────────────────────────────────────────────────────────
-    del _otp_store[phone]
+    delete_otp(phone)
 
     token = create_token(phone)
     ttl   = settings.JWT_EXPIRES_SECONDS

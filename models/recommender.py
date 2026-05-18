@@ -6,25 +6,25 @@ Data source (two-layer, progressive)
 --------------------------------------
   Layer 1 — Supabase county_profiles table (all 47 counties, live).
              Queried via db.county_profiles module.
-  Layer 2 — CSV fallback (data/seed_data.csv, 8 counties).
-             Used automatically if Supabase is unavailable or county is
-             not in the remote table (dev / offline mode).
+  Layer 2 — COUNTY_PROFILES from db/county_data.py (all 47 counties, local).
+             Used automatically if Supabase is unavailable or not configured.
+             Replaces the old 8-county seed_data.csv fallback.
 
 Recommendation strategy (two-layer)
 --------------------------------------
-  1. ML model (DecisionTreeClassifier) predicts based on rainfall, temp,
+  1. ML model (RandomForestClassifier) predicts based on rainfall, temp,
      soil type, and farm type — this is the primary signal.
   2. county_profiles supplies soil_type and avg_rainfall for the response
      payload and as fallback if the model isn't available.
   3. Weather notes layer applies real-time advice on top of the prediction.
 
-Function signatures are unchanged from the CSV version — routes don't change.
+Function signatures are unchanged — routes don't change.
 """
 
-import pandas as pd
 from functools import lru_cache
 
 from core.config import settings
+from db.county_data import COUNTY_PROFILES
 from models.ai_model import load_model, predict
 
 
@@ -106,66 +106,78 @@ def _supabase_list_counties() -> list[str] | None:
     return None
 
 
-# ── CSV fallback ──────────────────────────────────────────────────────────────
+# ── Local fallback — COUNTY_PROFILES (all 47 counties) ───────────────────────
 
 @lru_cache(maxsize=1)
-def _load_seed_data() -> pd.DataFrame:
-    """Load seed_data.csv once and cache it."""
-    return pd.read_csv(settings.SEED_DATA_PATH)
+def _build_local_index() -> dict[tuple[str, str], dict]:
+    """
+    Build a (county_lower, farm_type) → profile dict lookup once per process.
+    Covers all 47 Kenyan counties from db/county_data.py — no CSV, no network.
+    """
+    index: dict[tuple[str, str], dict] = {}
+    for row in COUNTY_PROFILES:
+        key = (row["county"].lower(), row["farm_type"])
+        index[key] = {
+            "county":             row["county"],
+            "soil_type":          row["soil_type"],
+            "avg_rainfall":       int(row["avg_rainfall"]),
+            "avg_temp":           float(row["avg_temp"]),
+            "elevation_m":        1000,   # not in county_data.py; use default
+            "irrigation":         0,
+            "market_price_index": 3,
+            "farm_type":          row["farm_type"],
+            "csv_recommendation": row["recommendation"],
+            "source":             "local",
+        }
+    return index
 
 
-def _csv_get_county(county: str, farm_type: str) -> dict | None:
-    df = _load_seed_data()
-    county_rows = df[df["county"].str.lower() == county.lower()]
-    if county_rows.empty:
-        return None
-
-    farm_rows = county_rows[county_rows["farm_type"] == farm_type]
-    row = farm_rows.iloc[0] if not farm_rows.empty else county_rows.iloc[0]
-
-    return {
-        "county":              row["county"],
-        "soil_type":           row["soil_type"],
-        "avg_rainfall":        int(row["avg_rainfall"]),
-        "avg_temp":            float(row["avg_temp"]),
-        "elevation_m":         int(row["elevation_m"]) if "elevation_m" in row else 1000,
-        "irrigation":          int(row["irrigation"]) if "irrigation" in row else 0,
-        "market_price_index":  int(row["market_price_index"]) if "market_price_index" in row else 3,
-        "farm_type":           row["farm_type"],
-        "csv_recommendation":  row["recommendation"],
-        "source":              "csv",
-    }
+def _local_get_county(county: str, farm_type: str) -> dict | None:
+    """Lookup (county, farm_type) from the in-process COUNTY_PROFILES index."""
+    index = _build_local_index()
+    # Exact match first
+    profile = index.get((county.lower(), farm_type))
+    if profile:
+        return profile
+    # Fallback: any farm_type for this county (graceful degradation)
+    for (c, _ft), v in index.items():
+        if c == county.lower():
+            return v
+    return None
 
 
-def _csv_list_counties() -> list[str]:
-    return _load_seed_data()["county"].unique().tolist()
+@lru_cache(maxsize=1)
+def _local_list_counties() -> list[str]:
+    """Unique county names in insertion order from COUNTY_PROFILES."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for row in COUNTY_PROFILES:
+        if row["county"] not in seen:
+            seen.add(row["county"])
+            result.append(row["county"])
+    return result
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-# Keep get_seed_data() for backwards-compat (used by training scripts)
-def get_seed_data() -> pd.DataFrame:
-    return _load_seed_data()
-
-
 def get_county_data(county: str, farm_type: str = "crop") -> dict | None:
     """
     Returns the best matching profile for (county, farm_type).
-    Tries Supabase first, falls back to CSV.
-    Returns None if the county is not found in either source.
+    Priority: Supabase (live) → COUNTY_PROFILES (local, 47 counties).
+    Returns None only if the county is not found in either source.
     """
     data = _supabase_get_county(county, farm_type)
     if data:
         return data
-    return _csv_get_county(county, farm_type)
+    return _local_get_county(county, farm_type)
 
 
 def list_counties() -> list[str]:
-    """Returns all county names. Supabase first (47), CSV fallback (8)."""
+    """Returns all county names. Supabase first (47), local fallback (47)."""
     counties = _supabase_list_counties()
     if counties:
         return counties
-    return _csv_list_counties()
+    return _local_list_counties()
 
 
 # ── Recommendation logic ──────────────────────────────────────────────────────

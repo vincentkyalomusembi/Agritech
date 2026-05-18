@@ -10,7 +10,7 @@ from core.config import settings
 def get_mock_weather(county: str) ->dict:
     """Returns realistic hardcoded weather for Kenyan counties."""
     
-    county  (county or "").strip().title()
+    county = (county or "").strip().title()
     base = sum(ord(c) for c in county) % 100 if county else 0
     temp = 18 + (base % 15)
     humidity = 45 + (base % 35)

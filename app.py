@@ -19,11 +19,14 @@ from routes.auth import router as auth_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Init session DB (creates table if missing)
-    from db.sessions import init_db, purge_expired
-    init_db()
-    purge_expired()
-    print("[startup] Session DB ready.")
+    # 1. Init session & OTP DBs (creates tables if missing)
+    from db.sessions import init_db as session_init_db, purge_expired as session_purge
+    from db.otp_store import init_db as otp_init_db, purge_expired as otp_purge
+    session_init_db()
+    session_purge()
+    otp_init_db()
+    otp_purge()
+    print("[startup] Session & OTP DBs ready.")
 
     # 2. Load / auto-train ML model
     from models.recommender import _get_model_bundle

@@ -53,20 +53,35 @@ def get_session(phone_number:str) -> dict:
         print(f"Error getting session {phone_number}: {e}")
         return {}
 
-def set_session(phone_number:str, data:dict) ->None:
-    """Writes or updates a session for the given phone number"""
+def set_session(phone_number: str, data: dict) -> None:
+    """
+    Merges `data` into the existing session and persists it.
+
+    Uses a read → merge → write pattern so that updating a single field
+    (e.g. farm_type) never wipes other fields (e.g. county, name).
+    """
     try:
+        # 1. Read the current session (may be empty dict for new sessions)
+        existing = get_session(phone_number)
+
+        # 2. Merge: new data takes priority over old values
+        merged = {**existing, **data}
+
+        # 3. Write back the merged dict
         with _get_conn() as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO ussd_sessions (phone_number, data, updated_at) 
+                INSERT INTO ussd_sessions (phone_number, data, updated_at)
                 VALUES (?, ?, ?)
+                ON CONFLICT(phone_number) DO UPDATE SET
+                    data       = excluded.data,
+                    updated_at = excluded.updated_at
                 """,
                 (
                     phone_number,
-                    json.dumps(data),
-                    time.time()
-                )
+                    json.dumps(merged),
+                    time.time(),
+                ),
             )
             conn.commit()
     except Exception as e:
