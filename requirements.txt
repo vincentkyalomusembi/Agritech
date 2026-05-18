@@ -7,3 +7,4 @@ joblib
 python-dotenv
 supabase
 PyJWT
+earthengine-api
